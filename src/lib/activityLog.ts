@@ -1,18 +1,9 @@
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebase';
+import {
+  createUserActivityEntry,
+  type ActivityType as ServiceActivityType,
+} from '../core/services/users.service';
 
-export type ActivityType =
-  | 'water'
-  | 'mood'
-  | 'energy'
-  | 'workout_completed'
-  | 'meal_completed'
-  | 'plan_requested'
-  | 'modification_requested'
-  | 'measurement_logged'
-  | 'voice_note_uploaded'
-  | 'photo_uploaded'
-  | 'chat_sent';
+export type ActivityType = ServiceActivityType;
 
 export interface ClientActivity {
   type: ActivityType;
@@ -40,16 +31,12 @@ export async function logClientActivity(
   metadata: Record<string, any> = {}
 ): Promise<void> {
   try {
-    if (!userId) return;
-    const activityRef = collection(db, 'users', userId, 'clientActivity');
-    await addDoc(activityRef, {
-      type,
-      title,
+    await createUserActivityEntry({
       userId,
       userName,
+      type,
+      title,
       metadata,
-      createdAt: serverTimestamp(),
-      isRead: false,
     });
   } catch (err) {
     console.warn('[activityLog] Failed to write activity:', (err as Error)?.message);

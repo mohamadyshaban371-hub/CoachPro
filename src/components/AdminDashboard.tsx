@@ -23,6 +23,8 @@ import Markdown from 'react-markdown';
 import MembershipManager from './MembershipManager';
 import EMSAttendance from './EMSAttendance';
 import FinancialDashboard from './FinancialDashboard';
+import { useNotifications } from '../hooks/useNotifications';
+import { useClientSelection } from '../hooks/useClientSelection';
 import { 
   LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend 
 } from 'recharts';
@@ -34,7 +36,6 @@ export default function AdminDashboard() {
   const [clients, setClients] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
-  const [selectedClient, setSelectedClient] = useState<UserProfile | null>(null);
   const [activeModalTab, setActiveModalTab] = useState<'profile' | 'progress' | 'chat'>('profile');
   const [selectedQuestionnaire, setSelectedQuestionnaire] = useState<FullQuestionnaire | null>(null);
   const [isRenewing, setIsRenewing] = useState(false);
@@ -66,6 +67,13 @@ export default function AdminDashboard() {
   const [brainError, setBrainError] = useState<string>('');
   // Track unread messages from clients
   const [unreadMessages, setUnreadMessages] = useState(0);
+
+  const {
+    selectedClient,
+    setSelectedClient,
+    expandedClient,
+    setExpandedClient,
+  } = useClientSelection();
 
   /**
    * Combines voiceTranscript + Vision InBody analysis + onboarding goals into
@@ -227,13 +235,10 @@ ${inbodyText || '(لم يتم تشغيل تحليل InBody بعد)'}
       setInBodyAnalyzing(false);
     }
   };
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [adminNotifications, setAdminNotifications] = useState<AppNotification[]>([]);
   // Admin Messages corner — drawer that lists every client so the coach can
   // jump straight into a chat without first scrolling to find the client card.
   const [showMessagesDrawer, setShowMessagesDrawer] = useState(false);
   const [messagesSearch, setMessagesSearch] = useState('');
-  const [expandedClient, setExpandedClient] = useState<string | null>(null);
   const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
   const [predictionResults, setPredictionResults] = useState<{[uid: string]: string}>({});
   const [isExportingPDF, setIsExportingPDF] = useState(false);
@@ -252,16 +257,21 @@ ${inbodyText || '(لم يتم تشغيل تحليل InBody بعد)'}
   const [aiIntensity, setAiIntensity] = useState<number | null>(null);
   const [selectedDifficulty, setSelectedDifficulty] = useState<'beginner' | 'intermediate' | 'advanced'>('intermediate');
 
-  // Targeted Notifications State
-  const [showNotificationModal, setShowNotificationModal] = useState(false);
-  const [notificationTarget, setNotificationTarget] = useState<UserProfile | null>(null);
-  const [notificationForm, setNotificationForm] = useState({
-    title: '',
-    message: '',
-    type: 'custom' as 'birthday' | 'inactivity' | 'system' | 'custom' | 'plan_update'
-  });
-
   const [trackingDate, setTrackingDate] = useState(new Date().toISOString().split('T')[0]);
+
+  const {
+    showNotifications,
+    setShowNotifications,
+    adminNotifications,
+    setAdminNotifications,
+    showNotificationModal,
+    setShowNotificationModal,
+    notificationTarget,
+    setNotificationTarget,
+    notificationForm,
+    setNotificationForm,
+    handleSendNotification,
+  } = useNotifications({ setLoading, setMessage });
 
   const toggleTaskStatus = async (clientUid: string, date: string, taskIdx: number, type: 'exercise' | 'meal') => {
     try {
@@ -344,52 +354,6 @@ ${inbodyText || '(لم يتم تشغيل تحليل InBody بعد)'}
       setAiLoading(prev => ({ ...prev, [type]: false }));
     }
   };
-
-  const handleSendNotification = async () => {
-    if (!notificationTarget || !notificationForm.title || !notificationForm.message) return;
-
-    setLoading(true);
-    try {
-      const notificationsRef = collection(db, 'users', notificationTarget.uid, 'notifications');
-      const newNotification = {
-        userId: notificationTarget.uid,
-        title: notificationForm.title,
-        message: notificationForm.message,
-        type: notificationForm.type,
-        isRead: false,
-        createdAt: new Date().toISOString()
-      };
-
-      await addDoc(notificationsRef, newNotification);
-      setMessage({ text: 'تم إرسال التنبيه بنجاح', type: 'success' });
-      setShowNotificationModal(false);
-      setNotificationForm({ title: '', message: '', type: 'custom' });
-      setTimeout(() => setMessage(null), 3000);
-    } catch (err) {
-      console.error(err);
-      setMessage({ text: 'خطأ في إرسال التنبيه', type: 'error' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Real-time admin notifications from Firestore subcollection
-  const prevAdminUnreadRef = useRef(0);
-  useEffect(() => {
-    const adminUid = auth.currentUser?.uid;
-    if (!adminUid) return;
-    const notifRef = collection(db, 'users', adminUid, 'notifications');
-    const q = query(notifRef, orderBy('createdAt', 'desc'));
-    const unsub = onSnapshot(q, (snap) => {
-      const notifs = snap.docs.map(d => ({ id: d.id, ...d.data() } as AppNotification));
-      const newCount = notifs.filter(n => !n.isRead).length;
-      if (newCount > prevAdminUnreadRef.current) playNotify();
-      prevAdminUnreadRef.current = newCount;
-      setAdminNotifications(notifs);
-    });
-    return () => unsub();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auth.currentUser?.uid]);
 
   // Memberships registry — loaded once for EMS package dropdowns
   const [membershipsRegistry, setMembershipsRegistry] = useState<import('../types').Membership[]>([]);

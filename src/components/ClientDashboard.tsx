@@ -1748,7 +1748,10 @@ export default function ClientDashboard({ profile: initialProfile }: ClientDashb
                         <YAxis stroke="#64748b" fontSize={10} />
                         <Tooltip 
                           contentStyle={{ backgroundColor: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '12px' }}
-                          labelFormatter={(str) => new Date(str).toLocaleDateString('ar-EG')}
+                          labelFormatter={(str) => {
+                            const rawValue = typeof str === 'string' || typeof str === 'number' ? str : '';
+                            return rawValue ? new Date(rawValue).toLocaleDateString('ar-EG') : '';
+                          }}
                         />
                         <Area type="monotone" dataKey="weight" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorWeight)" strokeWidth={3} name="الوزن" />
                       </AreaChart>
