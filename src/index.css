@@ -1,0 +1,155 @@
+/* Slim font payload: Cairo is the global Arabic/Latin UI font.
+   We only load 400 + 700 at startup (covers ~95% of UI text). The display
+   weight 900 used by the PDF export is loaded on-demand from generatePDF.
+   Inter was removed since Cairo handles Latin glyphs adequately. */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=JetBrains+Mono:wght@400&display=swap');
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Cairo", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --animate-spin-slow: spin 3s linear infinite;
+}
+
+@layer base {
+  :root {
+    /* Light mode — premium high-contrast palette */
+    --color-app-bg: #f1f5f9;
+    --color-app-surface: #ffffff;
+    --color-app-surface-2: #e8edf3;
+    --color-app-border: rgba(15, 23, 42, 0.14);
+    --color-app-text: #0a0f1e;
+    --color-app-text-muted: #374151;
+    /* Card accent borders for light mode */
+    --color-app-card-border: rgba(15, 23, 42, 0.10);
+  }
+  .dark {
+    --color-app-bg: #020617;
+    --color-app-surface: rgba(15, 23, 42, 0.8);
+    --color-app-surface-2: rgba(15, 23, 42, 0.5);
+    --color-app-border: rgba(255, 255, 255, 0.06);
+    --color-app-text: #f8fafc;
+    --color-app-text-muted: #94a3b8;
+    --color-app-card-border: rgba(255, 255, 255, 0.06);
+  }
+  html {
+    font-family: var(--font-sans);
+    background: var(--color-app-bg);
+    color: var(--color-app-text);
+    color-scheme: dark;
+  }
+  html.light { color-scheme: light; }
+  body {
+    background: var(--color-app-bg);
+    color: var(--color-app-text);
+    transition: background-color 200ms ease, color 200ms ease;
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────
+   LIGHT MODE — comprehensive legibility overrides
+   Many cards hard-code `text-white` / dark background classes
+   that become invisible on a white surface. We force high-
+   contrast overrides here so coaches/clients using light mode
+   get a premium, readable experience without changing every
+   component individually.
+   ──────────────────────────────────────────────────────────────── */
+
+/* Text colour overrides */
+html.light .text-white,
+html.light .text-slate-100,
+html.light .text-slate-200 {
+  color: #0a0f1e !important;
+}
+html.light .text-slate-300,
+html.light .text-slate-400 {
+  color: #2d3748 !important;
+}
+html.light .text-slate-500,
+html.light .text-slate-600 {
+  color: #4b5563 !important;
+}
+
+/* Dark surface → bright card */
+html.light .bg-slate-950,
+html.light .bg-slate-950\/40,
+html.light .bg-slate-950\/50,
+html.light .bg-slate-950\/80,
+html.light .bg-slate-950\/90 {
+  background-color: #f8fafc !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+html.light .bg-slate-900,
+html.light .bg-slate-900\/30,
+html.light .bg-slate-900\/40,
+html.light .bg-slate-900\/50,
+html.light .bg-slate-900\/60,
+html.light .bg-slate-900\/70,
+html.light .bg-slate-900\/80,
+html.light .bg-slate-900\/90 {
+  background-color: #ffffff !important;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+}
+html.light .bg-slate-800,
+html.light .bg-slate-800\/30,
+html.light .bg-slate-800\/40,
+html.light .bg-slate-800\/50,
+html.light .bg-slate-800\/60 {
+  background-color: #f1f5f9 !important;
+}
+html.light .bg-slate-700,
+html.light .bg-slate-700\/50 {
+  background-color: #e2e8f0 !important;
+}
+
+/* Border overrides */
+html.light .border-white\/5,
+html.light .border-white\/10,
+html.light .border-white\/15,
+html.light .border-white\/20 {
+  border-color: rgba(15, 23, 42, 0.10) !important;
+}
+
+/* Gradient backgrounds that look muddy in light mode */
+html.light [class*="from-slate-900"],
+html.light [class*="via-slate-900"],
+html.light [class*="to-slate-950"] {
+  --tw-gradient-stops: #ffffff, #f1f5f9 !important;
+}
+
+/* Sidebar & header surfaces */
+html.light .backdrop-blur-xl.bg-slate-900\/80 {
+  background-color: rgba(255,255,255,0.92) !important;
+}
+html.light .backdrop-blur-xl.bg-white\/70 {
+  background-color: rgba(255,255,255,0.96) !important;
+}
+
+/* ─── Mobile breathing room — prevents label/value overlap on
+   narrow screens where a row collapses unexpectedly. */
+@media (max-width: 480px) {
+  h1, h2, h3 { line-height: 1.25; }
+  .text-3xl { font-size: 1.5rem !important; }
+  .text-4xl { font-size: 1.75rem !important; }
+  .rounded-\[2rem\], .rounded-\[3rem\] { padding-inline: max(1rem, env(safe-area-inset-left)); }
+}
+
+.rtl { direction: rtl; }
+.ltr { direction: ltr; }
+
+/* Themed semantic utilities used across the responsive shell */
+.app-bg { background: var(--color-app-bg); }
+.app-surface { background: var(--color-app-surface); }
+.app-surface-2 { background: var(--color-app-surface-2); }
+.app-border { border-color: var(--color-app-border); }
+.app-text { color: var(--color-app-text); }
+.app-text-muted { color: var(--color-app-text-muted); }
+
+/* Hide scrollbar in horizontal scroll regions */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Bottom nav safe-area */
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }

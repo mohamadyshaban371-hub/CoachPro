@@ -1,0 +1,98 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Represents a user in the system.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "client"] },
+        "packages": { "type": "object" },
+        "onboardingComplete": { "type": "boolean" },
+        "isActivated": { "type": "boolean" },
+        "onboardingData": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "name", "role"]
+    },
+    "Questionnaire": {
+      "title": "Questionnaire",
+      "description": "User's detailed survey responses based on their packages.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "nutrition": { "type": "object" },
+        "workout": { "type": "object" },
+        "rehab": { "type": "object" },
+        "ems": { "type": "object" },
+        "submittedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "submittedAt"]
+    },
+    "Measurement": {
+      "title": "Measurement",
+      "description": "Historical measurement data for a user.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "weight": { "type": "number" },
+        "bodyFat": { "type": "number" },
+        "muscleMass": { "type": "number" },
+        "photos": { "type": "array", "items": { "type": "string" } },
+        "date": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "weight", "date"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A chat message between coach and client.",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string" },
+        "senderId": { "type": "string" },
+        "receiverId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["text", "senderId", "receiverId", "timestamp"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "A targeted notification for a user.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "type": { "type": "string", "enum": ["birthday", "inactivity", "system", "custom", "plan_update"] },
+        "isRead": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "title", "message", "type", "isRead", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile data"
+    },
+    "/users/{userId}/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "Notifications for a specific user"
+    },
+    "/questionnaires/{userId}": {
+      "schema": "Questionnaire",
+      "description": "Detailed survey responses"
+    },
+    "/measurements/{userId}/history/{measurementId}": {
+      "schema": "Measurement",
+      "description": "Historical measurement records"
+    },
+    "/chats/{chatId}/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Real-time chat messages. chatId is usually sorted pair of userIds."
+    }
+  }
+}

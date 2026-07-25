@@ -1,0 +1,14 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "Sj2Z895Gqz19aU1Zq5m0g"
+uri = "file://COACHPRO_FULL_BRIEF.md"
+type = "text"
+title = "كوتش برو — الدليل الشامل للتطبيق"
+
+[[outputs]]
+id = "S0C9Xirofd0cEuu_UVHZq"
+uri = "file://CoachPro_System_Documentation.md"
+type = "text"
+title = "CoachPro — Complete System Documentation"

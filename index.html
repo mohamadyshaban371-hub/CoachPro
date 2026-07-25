@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ar" dir="rtl" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#020617" />
+    <meta name="description" content="CoachPro - Smart Fitness Coaching Platform | كوتش برو" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/icon-192.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- NOTE: Cairo font is loaded by src/index.css (slim 400/700 set) so the
+         login screen renders fast. Heavier display weights (900) are loaded
+         on-demand only when the user clicks "Export PDF" — see ClientDashboard.generatePDF. -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="CoachPro" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <!-- Android / Capacitor native hints -->
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="msapplication-tap-highlight" content="no" />
+    <script>
+      (function () {
+        try {
+          // CoachPro defaults to dark (premium brand identity); user can opt into light.
+          var t = localStorage.getItem('coachpro:theme') || 'dark';
+          document.documentElement.classList.add(t);
+          document.documentElement.classList.remove(t === 'dark' ? 'light' : 'dark');
+          var l = localStorage.getItem('coachpro:locale') || 'ar';
+          document.documentElement.lang = l;
+          document.documentElement.dir = l === 'ar' ? 'rtl' : 'ltr';
+        } catch (e) {}
+      })();
+    </script>
+    <title>CoachPro — كوتش برو</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

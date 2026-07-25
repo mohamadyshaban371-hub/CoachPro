@@ -1,0 +1,5 @@
+- [Location source priority](location-priority.md) — questionnaire env.location must come BEFORE onboardingData.trainingLocation in aiMasterEngine.ts
+- [Menstrual cycle UI gap](cycle-ui.md) — cycleLog on UserProfile; Onboarding collects it only for female; saved separately from onboardingData in Firestore
+- [Plan builder two-layer flow](plan-builder.md) — text planData = coach notes only; weeklyPlanDraft = structured JSON client sees; always publish separately
+- [AdminDashboard planData bleed](plandata-bleed.md) — planData must reset from isSettingPlan.plans on uid change or old client text bleeds into new client modal
+- [Wearable Integration Architecture](wearable-integration.md) — provider tiers, normalized WatchDaySnapshot, age fix, HR throttle, EMS recovery gate, compliance score

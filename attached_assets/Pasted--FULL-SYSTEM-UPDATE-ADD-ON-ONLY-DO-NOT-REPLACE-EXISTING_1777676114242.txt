@@ -1,0 +1,270 @@
+🔧 FULL SYSTEM UPDATE (ADD-ON ONLY – DO NOT REPLACE EXISTING SYSTEM)
+
+🎯 الهدف
+
+إضافة نظام متكامل لعضوية Rehabilitation (التأهيل الرياضي) + تحسين الاستبيان + نظام اختبارات ذكي + برامج تأهيل + ربط الإصابات بالتمرين والتغذية
+⚠️ بدون حذف أو تغيير النظام الحالي — فقط إضافة Layer جديدة
+
+---
+
+🧩 1) نظام العضويات (Membership Logic)
+
+المطلوب:
+
+- الحفاظ على النظام الحالي للعضويات
+- إضافة نوع جديد:
+
+Rehabilitation Membership
+
+Behavior:
+
+- عند اختيار الأدمن للعضوية → يظهر الاستبيان الخاص بها تلقائيًا
+- كل عضوية لها:
+  - Questionnaire خاص
+  - Tests خاصة
+  - Programs خاصة
+
+---
+
+📋 2) استبيان التأهيل (Rehab Questionnaire)
+
+إضافة Section جديدة:
+
+Injury Assessment
+
+الحقول:
+
+- نوع الإصابة (Dropdown متعدد)
+- مكان الإصابة (ركبة / كاحل / ظهر / كتف / رقبة...)
+- شدة الألم (1–10)
+- مدة الإصابة
+- هل في جراحة سابقة؟
+- هل في ألم أثناء الحركة؟
+- وصف الحالة (Text)
+
+---
+
+🧠 3) تقسيم الاختبارات
+
+🟢 A) Physical Tests (اختبارات بدنية)
+
+- Strength
+- Endurance
+- Mobility
+- Flexibility
+
+🔴 B) Rehab Tests (اختبارات تأهيلية)
+
+مرتبطة بالإصابات
+
+---
+
+🏥 4) مكتبة الإصابات (Injury Library)
+
+إنشاء Database:
+
+injuries_collection
+
+أمثلة:
+
+- Ankle Sprain
+- Knee Pain
+- ACL Injury
+- Lower Back Pain
+- Shoulder Impingement
+- Disc (Herniated)
+- Muscle Tear
+- Dislocation
+
+---
+
+🧪 5) ربط كل إصابة باختبارات
+
+مثال:
+
+Knee Injury:
+
+- Single Leg Balance Test
+- Step Down Test
+- Range of Motion Test
+
+Lower Back Pain:
+
+- Sit & Reach
+- Core Stability Test
+- Pelvic Tilt Test
+
+---
+
+⚙️ 6) منطق الذكاء (AI Logic)
+
+Input:
+
+- Gender
+- Age
+- Body Fat
+- Goal
+- Injury (إن وجد)
+
+Output:
+
+- Suggested Physical Tests
+- Suggested Rehab Tests
+
+---
+
+👨‍💻 7) دور الأدمن (IMPORTANT)
+
+إضافة Dashboard Feature:
+
+زر:
+
+Select Rehab Tests
+
+Behavior:
+
+1. يظهر له إصابة العميل
+2. يظهر له قائمة اختبارات مقترحة
+3. يقدر:
+   - ✔️ يحدد الاختبارات
+   - ✏️ يعدل
+   - 🚀 ينشر للعميل
+
+---
+
+📊 8) نظام التقييم (Scoring System)
+
+لكل اختبار:
+
+- Score (0–100)
+- Level:
+  - Poor
+  - Average
+  - Good
+  - Excellent
+
+---
+
+🔁 9) نظام إعادة التقييم (Re-Assessment)
+
+بعد فترة (7–14 يوم):
+
+- يظهر اختبارات جديدة تلقائيًا
+
+الهدف:
+
+- قياس التحسن
+- تحديد:
+  - Progress
+  - Regression
+
+---
+
+🏃‍♂️ 10) برنامج التأهيل (Rehab Program Engine)
+
+لكل إصابة:
+
+برنامج 3 مراحل:
+
+Phase 1:
+
+- Pain Reduction
+- Mobility
+
+Phase 2:
+
+- Strength
+- Stability
+
+Phase 3:
+
+- Return to Activity
+
+---
+
+🔄 11) ربط البرنامج بالإصابة (CRITICAL)
+
+قبل إنشاء أي برنامج:
+
+يتم فحص:
+
+if (client.hasInjury) → modify program
+
+مثال:
+
+Knee Injury:
+
+- ❌ منع Jump
+- ✔️ تمارين Quad Strength
+
+Lower Back Pain:
+
+- ✔️ Core Stability
+- ❌ Heavy Load
+
+---
+
+🥗 12) ربط التغذية بالحالة
+
+مثال:
+
+- إصابة → زيادة:
+  - Protein
+  - Omega 3
+- تقليل:
+  - Inflammation foods
+
+---
+
+⚡ 13) تحسين الأداء (Fix Existing Issues)
+
+المطلوب:
+
+✔️ فصل حفظ البيانات عن الصور
+
+✔️ الصور optional
+
+✔️ ضغط الصور قبل الرفع
+
+- Quality: 60–70
+- Max: 1000px
+
+✔️ لو فشل رفع الصورة:
+
+- لا توقف النظام
+
+---
+
+🧾 14) تجربة المستخدم
+
+إضافة:
+
+- Loading أثناء الحفظ
+- Success Message
+- Error للصورة فقط
+
+---
+
+🔐 15) ملاحظات مهمة
+
+- هذا التعديل:
+  ✅ ADD ONLY
+  ❌ DO NOT DELETE ANY EXISTING CODE
+
+- الحفاظ على:
+  
+  - العضويات الحالية
+  - البرامج الحالية
+  - الداتا الحالية
+
+---
+
+✅ النتيجة النهائية
+
+- نظام تأهيل كامل من الإصابة → التعافي
+- اختبارات ذكية + اختيار أدمن
+- برامج متكيفة حسب الحالة
+- دعم EMS + Training + Nutrition
+- بدون مشاكل رفع الصور
+
+---

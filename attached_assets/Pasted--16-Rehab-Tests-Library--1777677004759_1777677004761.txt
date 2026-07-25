@@ -1,0 +1,165 @@
+🧠 16) Rehab Tests Library (مكتبة شاملة لاختبارات التأهيل)
+
+🎯 الهدف
+
+إنشاء مكتبة مركزية تحتوي على:
+
+- جميع اختبارات التأهيل
+- مصنفة حسب:
+  - نوع الإصابة
+  - المنطقة
+  - الهدف (Mobility / Strength / Stability)
+
+---
+
+🗂️ Database Structure
+
+Collection:
+
+rehab_tests_library
+
+كل Test يحتوي على:
+
+{
+  testName: "Single Leg Balance Test",
+  category: "Stability",
+  bodyPart: "Knee",
+  injuryType: ["Knee Pain", "ACL Injury"],
+  level: "Beginner", // Beginner / Intermediate / Advanced
+  description: "Stand on one leg for 30 seconds",
+  instructions: [
+    "قف على رجل واحدة",
+    "حافظ على التوازن",
+    "زود الصعوبة بغلق العين"
+  ],
+  duration: "30 sec",
+  equipment: "None",
+  scoringMethod: "time-based",
+  normalRange: "30 sec",
+  videoUrl: "",
+  notes: ""
+}
+
+---
+
+🧪 أمثلة للاختبارات داخل المكتبة
+
+🦵 Knee:
+
+- Single Leg Balance
+- Step Down Test
+- Wall Sit Test
+- Knee Flexion ROM
+
+🦶 Ankle:
+
+- Ankle Mobility Test
+- Heel Raise Test
+- Balance Board Test
+
+🧍‍♂️ Lower Back:
+
+- Sit & Reach
+- Plank Hold
+- Pelvic Control Test
+
+💪 Shoulder:
+
+- Shoulder Flexion Test
+- External Rotation Test
+- Wall Slide Test
+
+---
+
+⚙️ 17) Admin Selection System
+
+إضافة واجهة للأدمن:
+
+زر:
+
+Select From Rehab Library
+
+---
+
+🧩 Behavior:
+
+1. يظهر للأدمن:
+   
+   - إصابة العميل
+   - + Suggested Tests (من AI)
+
+2. يظهر له:
+   
+   - كل المكتبة (Filterable)
+
+Filters:
+
+- Body Part
+- Injury Type
+- Level
+- Category
+
+---
+
+✅ الأدمن يقدر:
+
+- ✔️ يختار Test
+- ➕ يضيف Test يدوي
+- ❌ يحذف Test
+- ✏️ يعدل Test
+
+---
+
+🚀 إرسال الاختبارات للعميل:
+
+بعد الاختيار:
+
+assignTestsToClient(clientId, selectedTests)
+
+---
+
+📱 18) واجهة العميل
+
+يظهر له:
+
+- اسم الاختبار
+- شرح
+- فيديو (اختياري)
+- زر:
+  - Start Test
+  - Submit Result
+
+---
+
+📊 19) تسجيل النتائج
+
+client_test_results
+
+{
+  clientId: "",
+  testId: "",
+  result: "",
+  score: "",
+  date: "",
+  phase: "Phase 1"
+}
+
+---
+
+🔁 20) إعادة الاستخدام
+
+المكتبة تستخدم في:
+
+- Rehab
+- Physical Testing
+- Performance
+
+---
+
+🧠 21) مميزات قوية
+
+- تقلل وقتك كأدمن ⏱️
+- توحيد جودة التقييم 🎯
+- قابل للتوسع (تضيف Tests جديدة بسهولة)
+
+---

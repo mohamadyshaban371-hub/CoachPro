@@ -1,0 +1,181 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && 
+             "email" in request.auth.token && 
+             request.auth.token.email.lower() == 'lotfyshaban2211@gmail.com';
+             // temporarily removing verified check to debug access
+             // && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Validation Blueprints ---
+    function isValidUserSchema(data) {
+      return data.uid is string && 
+             data.email is string && 
+             data.email.size() <= 200 &&
+             data.name is string && 
+             data.name.size() <= 100 &&
+             data.role in ['admin', 'client'] &&
+             data.isActivated is bool;
+    }
+
+    function isValidProgressUpdate(data) {
+       // Check if dailyProgress is a map and has reasonable size
+       return (!('dailyProgress' in data) || data.dailyProgress is map) &&
+              (!('measurementHistory' in data) || data.measurementHistory is list);
+    }
+
+    // --- Rules ---
+
+    // USERS COLLECTION
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow delete: if isAdmin();
+
+      // ASSESSMENTS SUB-COLLECTION
+      match /assessments/{assessmentId} {
+        allow get, list: if isOwner(userId) || isAdmin();
+        allow create, update: if isOwner(userId) || isAdmin();
+      }
+
+      // NOTIFICATIONS SUB-COLLECTION
+      // Owner may also create their own *self* notifications — used by the
+      // adaptive AI coach (smartwatch advisories) which fires inside the
+      // client app when sleep / HR triggers are met.
+      match /notifications/{notificationId} {
+        allow get, list: if isOwner(userId) || isAdmin();
+        allow create: if isAdmin() || (isOwner(userId) && incoming().type == 'advisory');
+        allow update: if isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['isRead']);
+        allow delete: if isAdmin() || isOwner(userId);
+      }
+
+      // CLIENT ACTIVITY SUB-COLLECTION
+      // Real-time stream of every action the client takes (water, mood,
+      // workout completion, plan request, etc). Powers the admin "Big Brother"
+      // recent-activity feed.
+      match /clientActivity/{activityId} {
+        allow get, list: if isOwner(userId) || isAdmin();
+        allow create: if isOwner(userId) || isAdmin();
+        allow update: if isAdmin();
+        allow delete: if isAdmin();
+      }
+      
+      allow create: if isOwner(userId) && 
+                      isValidUserSchema(incoming()) && 
+                      incoming().uid == request.auth.uid &&
+                      (
+                        (incoming().role == 'client' && incoming().isActivated == false) ||
+                        (isAdmin() && incoming().role == 'admin' && incoming().isActivated == true)
+                      );
+      
+      allow update: if (isOwner(userId) || isAdmin()) && (
+        // Admin Master Gate
+        (isAdmin()) ||
+        // User Action Gate
+        (isOwner(userId) && (
+          // Action: Onboarding Completion
+          (incoming().diff(existing()).affectedKeys().hasOnly(['onboardingComplete', 'onboardingData', 'lastLoginAt'])) ||
+          // Action: Questionnaire Completion
+          (incoming().diff(existing()).affectedKeys().hasOnly(['questionnaireComplete', 'measurementHistory', 'nutritionSurveyData', 'lastLoginAt'])) ||
+          // Action: Assessment Completion
+          (incoming().diff(existing()).affectedKeys().hasOnly(['assessmentRequests', 'assessmentHistory', 'lastLoginAt'])) ||
+          // Action: Activity Log / Progress
+          (incoming().diff(existing()).affectedKeys().hasOnly(['dailyProgress', 'measurementHistory', 'lastLoginAt']) && isValidProgressUpdate(incoming())) ||
+          // Action: Daily Log (water intake, smartwatch sync, daily notes)
+          (incoming().diff(existing()).affectedKeys().hasOnly(['dailyLogs', 'lastLoginAt'])) ||
+          // Action: Heartbeat
+          (incoming().diff(existing()).affectedKeys().hasOnly(['lastLoginAt']))
+        ))
+      );
+    }
+
+    // QUESTIONNAIRES COLLECTION
+    match /questionnaires/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow delete: if isAdmin();
+      allow create: if isOwner(userId) && incoming().userId == request.auth.uid;
+      allow update: if (isOwner(userId) || isAdmin()) && (
+        (isAdmin()) ||
+        (isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['userId', 'nutrition', 'workout', 'rehab', 'ems', 'submittedAt', 'questionnaireComplete']))
+      );
+    }
+
+    // CLIENT UPLOADS
+    match /client_uploads/{userId}/{allPaths=**} {
+      allow read, write: if isOwner(userId) || isAdmin();
+    }
+
+    // TEST/CONNECTION
+    match /test/connection {
+      allow read: if isSignedIn();
+    }
+
+    // CHATS COLLECTION
+    match /chats/{chatId}/messages/{messageId} {
+      // Allow if the user is part of the chatId (e.g., coach_clientId)
+      allow read, write: if isSignedIn() && (
+        chatId.contains(request.auth.uid) || isAdmin()
+      );
+    }
+
+    // CHAMPIONS FEED — community wall, comments, and one level of replies.
+    // Any signed-in user reads. Author or admin can delete. Likes are
+    // self-managed via arrayUnion/arrayRemove on the user's own UID.
+    match /feedPosts/{postId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn() && incoming().authorId == request.auth.uid;
+      allow update: if isSignedIn() && (
+        isAdmin() ||
+        // Author edits text/media
+        (existing().authorId == request.auth.uid &&
+         incoming().diff(existing()).affectedKeys().hasOnly(['text', 'media', 'commentCount'])) ||
+        // Anyone toggles their own like
+        (incoming().diff(existing()).affectedKeys().hasOnly(['likes'])) ||
+        // Anyone bumps the comment counter when they comment
+        (incoming().diff(existing()).affectedKeys().hasOnly(['commentCount']))
+      );
+      allow delete: if isSignedIn() && (isAdmin() || existing().authorId == request.auth.uid);
+
+      match /comments/{commentId} {
+        allow get, list: if isSignedIn();
+        allow create: if isSignedIn() && incoming().authorId == request.auth.uid;
+        allow update: if isSignedIn() && (
+          isAdmin() ||
+          (existing().authorId == request.auth.uid &&
+           incoming().diff(existing()).affectedKeys().hasOnly(['text']))
+        );
+        allow delete: if isSignedIn() && (isAdmin() || existing().authorId == request.auth.uid);
+      }
+    }
+  }
+}

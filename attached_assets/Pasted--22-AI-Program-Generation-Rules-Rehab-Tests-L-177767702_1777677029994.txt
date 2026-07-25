@@ -1,0 +1,204 @@
+🧠 22) AI Program Generation Rules (قواعد إنشاء البرنامج الذكي)
+
+🎯 الهدف
+
+استخدام:
+
+- Rehab Tests Library
+- بيانات العميل
+- نتائج الاختبارات
+
+لإنشاء برنامج:
+
+- Rehab
+- Training
+- EMS
+- Nutrition
+
+---
+
+📥 1) Inputs (مدخلات النظام)
+
+{
+  gender,
+  age,
+  weight,
+  bodyFat,
+  goal,
+  fitnessLevel,
+  injury: {
+    exists: true/false,
+    type,
+    bodyPart,
+    severity
+  },
+  testResults: [],
+  activityLevel
+}
+
+---
+
+🧠 2) Core Logic
+
+Step 1: Injury Check (CRITICAL)
+
+if (injury.exists) {
+  activateRehabMode = true;
+}
+
+---
+
+Step 2: Select Phase
+
+بناءً على:
+
+- severity
+- pain level
+- test score
+
+if (severity == "high") → Phase 1
+if (severity == "medium") → Phase 2
+if (low & good score) → Phase 3
+
+---
+
+🏥 3) Rehab Program Structure
+
+Phase 1:
+
+- Pain Reduction
+- Mobility
+- Isometric Exercises
+
+Phase 2:
+
+- Strength
+- Stability
+- Controlled Movement
+
+Phase 3:
+
+- Functional Training
+- Return to Sport
+- Load Progression
+
+---
+
+🧪 4) ربط الاختبارات بالبرنامج
+
+لكل Test:
+
+if (test.score < 50) → add corrective exercise
+if (test.score 50–75) → moderate training
+if (test.score > 75) → advanced progression
+
+---
+
+🏃‍♂️ 5) Exercise Selection Rules
+
+مثال Knee Injury:
+
+avoid: Jumping, Deep Squats
+add:
+- Quad Strength
+- Hamstring Balance
+- Stability Work
+
+---
+
+مثال Lower Back:
+
+avoid: Heavy Load
+add:
+- Core Stability
+- Mobility
+- Posture Training
+
+---
+
+⚡ 6) Program Output Structure
+
+{
+  phase: "Phase 1",
+  duration: "2 weeks",
+  sessionsPerWeek: 3,
+  exercises: [
+    {
+      name,
+      sets,
+      reps,
+      notes,
+      target
+    }
+  ],
+  precautions: [],
+  progressionPlan: []
+}
+
+---
+
+🔁 7) Auto Progression Logic
+
+بعد كل فترة (7–14 يوم):
+
+if (newTestScore > oldScore) → upgrade phase
+if (no improvement) → modify program
+if (worse) → regress phase
+
+---
+
+🧠 8) AI Adjustment Rules
+
+التعديل يتم إذا:
+
+- ألم مستمر
+- نتائج ضعيفة
+- عدم التزام
+
+if (pain > 7) → reduce intensity
+if (compliance < 50%) → simplify program
+
+---
+
+👨‍💻 9) Admin Override (مهم جدًا)
+
+الأدمن يقدر:
+
+- ✔️ تعديل البرنامج
+- ✔️ حذف/إضافة تمارين
+- ✔️ تغيير المرحلة
+- ✔️ إعادة إرسال
+
+---
+
+🧬 10) Integration مع باقي الأنظمة
+
+EMS:
+
+- تقليل intensity في الإصابة
+- تركيز على العضلات الداعمة
+
+Nutrition:
+
+- زيادة Protein
+- تقليل inflammation
+
+---
+
+🧾 11) Logging & Tracking
+
+program_history
+
+- كل تعديل يتسجل
+- كل مرحلة محفوظة
+
+---
+
+🎯 12) Final Result
+
+- برنامج ذكي متغير حسب الحالة
+- مبني على اختبارات حقيقية
+- قابل للتعديل
+- مناسب للإصابات + الأداء
+
+---
