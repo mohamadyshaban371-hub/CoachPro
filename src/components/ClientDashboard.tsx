@@ -45,6 +45,9 @@ import {
   type RehabTest,
 } from '../lib/scientificEngine';
 import { buildAdaptiveContext } from '../services/aiMasterEngine';
+import AICoachDashboard from './AICoachDashboard';
+import { useWorkoutBuilder } from '../hooks/useWorkoutBuilder';
+import { useMealBuilder } from '../hooks/useMealBuilder';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface ClientDashboardProps {
@@ -110,6 +113,9 @@ export default function ClientDashboard({ profile: initialProfile }: ClientDashb
   const [assessmentResults, setAssessmentResults] = useState<{[key: string]: string | number}>({});
   const [adaptiveInputs, setAdaptiveInputs] = useState<Record<string, string>>({});
   const [savingAdaptive, setSavingAdaptive] = useState(false);
+  const [selectedClientWorkout, setSelectedClientWorkout] = useState<any>(null);
+  const { clientWorkouts, saveWorkout, markExerciseComplete } = useWorkoutBuilder(profile.uid);
+  const { mealPlans, markMealComplete } = useMealBuilder(profile.uid);
 
   // Load questionnaire for adaptive test location awareness
   const [questionnaire, setQuestionnaire] = useState<FullQuestionnaire | undefined>(undefined);
@@ -119,6 +125,41 @@ export default function ClientDashboard({ profile: initialProfile }: ClientDashb
       if (snap.exists()) setQuestionnaire(snap.data() as FullQuestionnaire);
     }).catch(() => {});
   }, [profile.uid]);
+
+  useEffect(() => {
+    if (!clientWorkouts.length) {
+      setSelectedClientWorkout(null);
+      return;
+    }
+    if (!selectedClientWorkout || !clientWorkouts.some((workout) => workout.id === selectedClientWorkout.id)) {
+      setSelectedClientWorkout(clientWorkouts[0]);
+    }
+  }, [clientWorkouts, selectedClientWorkout]);
+
+  const handleClientExerciseField = async (exerciseId: string, field: 'notes' | 'performedWeight', value: string) => {
+    if (!selectedClientWorkout) return;
+    const nextExercises = selectedClientWorkout.exercises.map((exercise: any) =>
+      exercise.id === exerciseId ? { ...exercise, [field]: value } : exercise
+    );
+    const updated = { ...selectedClientWorkout, exercises: nextExercises };
+    setSelectedClientWorkout(updated);
+    await saveWorkout(updated);
+  };
+
+  const handleClientExerciseComplete = async (exerciseId: string) => {
+    if (!selectedClientWorkout) return;
+    const updated = await markExerciseComplete(selectedClientWorkout, exerciseId);
+    if (updated) setSelectedClientWorkout(updated);
+  };
+
+  const handleClientMealComplete = async (plan: any, mealId: string) => {
+    await markMealComplete(plan, mealId);
+  };
+
+  const activeMealPlan = useMemo(() => {
+    const todayKey = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date().getDay()];
+    return mealPlans.find((plan) => plan.day === todayKey) || mealPlans[0] || null;
+  }, [mealPlans]);
 
   // Adaptive Test Selector — system picks safe tests based on profile + questionnaire location.
   const adaptiveCtx = useMemo(
@@ -1413,6 +1454,37 @@ export default function ClientDashboard({ profile: initialProfile }: ClientDashb
                 </div>
                 
                 <div className="space-y-4">
+                  {activeMealPlan ? (
+                    <div className="rounded-[2rem] border border-cyan-500/20 bg-cyan-500/10 p-4">
+                      <div className="mb-3 flex items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-white">{activeMealPlan.title}</p>
+                          <p className="text-xs text-slate-400">Coach-managed meal plan • {activeMealPlan.completionPercent || 0}% complete</p>
+                        </div>
+                        <span className="rounded-full bg-slate-950/70 px-3 py-1 text-[11px] text-slate-300">{activeMealPlan.day}</span>
+                      </div>
+                      <div className="space-y-3">
+                        {activeMealPlan.meals.map((meal: any, idx: number) => (
+                          <div key={meal.id || idx} className="rounded-2xl border border-white/10 bg-slate-950/50 p-4">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="font-semibold text-white">{meal.name}</p>
+                                <p className="text-xs text-slate-400">{meal.notes || meal.type || 'Meal'}</p>
+                              </div>
+                              <button onClick={() => void handleClientMealComplete(activeMealPlan, meal.id || '')} className={`rounded-full p-2 ${meal.completed ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/5 text-slate-400'}`}>
+                                <Check size={16} />
+                              </button>
+                            </div>
+                            <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-slate-400">
+                              <span className="rounded-full border border-white/10 px-2 py-1">{meal.calories || 0} kcal</span>
+                              <span className="rounded-full border border-white/10 px-2 py-1">{meal.protein || 0}g protein</span>
+                              <span className="rounded-full border border-white/10 px-2 py-1">{meal.carbs || 0}g carbs</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
                   {(profile.plans?.weeklyPlan?.[['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][new Date().getDay()] as keyof WeeklyPlan]?.nutrition || []).map((meal, idx) => {
                     const todayStr = new Date().toISOString().split('T')[0];
                     const isDone = profile.dailyProgress?.[todayStr]?.mealsCompleted?.includes(idx);
@@ -1661,6 +1733,66 @@ export default function ClientDashboard({ profile: initialProfile }: ClientDashb
             </div>
           )}
 
+          {activeTab === 'today' && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              <div className="rounded-[2rem] border border-white/10 bg-slate-900/70 p-6">
+                <div className="mb-4 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Workout Tracker</h3>
+                    <p className="text-sm text-slate-400">Track the assigned workout, log weights, and mark exercises complete.</p>
+                  </div>
+                </div>
+
+                {clientWorkouts.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-white/10 bg-slate-950/40 p-6 text-sm text-slate-400">
+                    Your coach has not assigned a workout yet.
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {clientWorkouts.map((workout) => (
+                      <div key={workout.id} className={`rounded-2xl border p-4 ${selectedClientWorkout?.id === workout.id ? 'border-cyan-500/40 bg-cyan-500/10' : 'border-white/10 bg-slate-950/50'}`}>
+                        <button onClick={() => setSelectedClientWorkout(workout)} className="mb-3 flex w-full items-center justify-between text-left">
+                          <div>
+                            <p className="font-semibold text-white">{workout.title}</p>
+                            <p className="text-sm text-slate-400">{workout.day || 'Assigned'} • {workout.exercises?.length || 0} exercises</p>
+                          </div>
+                          <div className="rounded-full bg-emerald-500/10 px-3 py-1 text-sm text-emerald-300">{workout.completionPercent || 0}%</div>
+                        </button>
+                        {selectedClientWorkout?.id === workout.id && (
+                          <div className="space-y-3">
+                            {selectedClientWorkout.exercises.map((exercise: any) => (
+                              <div key={exercise.id} className="rounded-2xl border border-white/10 bg-slate-900/60 p-3">
+                                <div className="mb-2 flex items-center justify-between">
+                                  <div>
+                                    <p className="font-semibold text-white">{exercise.name}</p>
+                                    <p className="text-xs text-slate-400">{exercise.sets} × {exercise.reps}</p>
+                                  </div>
+                                  <button onClick={() => void handleClientExerciseComplete(exercise.id)} className={`rounded-full p-2 ${exercise.completed ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/5 text-slate-400'}`}>
+                                    <Check size={16} />
+                                  </button>
+                                </div>
+                                <div className="grid gap-3 md:grid-cols-2">
+                                  <label className="text-sm text-slate-300">
+                                    <span className="mb-1 block text-[11px] uppercase tracking-widest text-slate-500">Performed Weight</span>
+                                    <input value={exercise.performedWeight || ''} onChange={(event) => void handleClientExerciseField(exercise.id, 'performedWeight', event.target.value)} className="w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none" placeholder="e.g. 20kg" />
+                                  </label>
+                                  <label className="text-sm text-slate-300">
+                                    <span className="mb-1 block text-[11px] uppercase tracking-widest text-slate-500">Notes</span>
+                                    <input value={exercise.notes || ''} onChange={(event) => void handleClientExerciseField(exercise.id, 'notes', event.target.value)} className="w-full rounded-xl border border-white/10 bg-slate-950/60 px-3 py-2 text-sm text-white outline-none" placeholder="How did it feel?" />
+                                  </label>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {activeTab === 'weekly' && (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                <div className="flex overflow-x-auto pb-4 gap-3 no-scrollbar ltr">
@@ -1788,6 +1920,7 @@ export default function ClientDashboard({ profile: initialProfile }: ClientDashb
 
                 {/* AI Features Grid */}
                 <div className="space-y-6">
+                  <AICoachDashboard profile={profile} onExportPdf={generatePDF} />
                   <div className="grid grid-cols-2 gap-4">
                     <button 
                       onClick={() => setShowSocialAI(true)}

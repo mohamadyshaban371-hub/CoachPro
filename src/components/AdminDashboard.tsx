@@ -23,9 +23,25 @@ import Markdown from 'react-markdown';
 import MembershipManager from './MembershipManager';
 import EMSAttendance from './EMSAttendance';
 import FinancialDashboard from './FinancialDashboard';
+import CoachDashboardAnalytics from './CoachDashboardAnalytics';
+import AICoachDashboard from './AICoachDashboard';
+import ExerciseLibrary from './ExerciseLibrary';
+import WorkoutBuilder from './WorkoutBuilder';
+import WorkoutPlanner from './WorkoutPlanner';
+import WorkoutTemplateManager from './WorkoutTemplateManager';
+import FoodLibrary from './FoodLibrary';
+import MealBuilder from './MealBuilder';
+import MealPlanner from './MealPlanner';
+import MealTemplateManager from './MealTemplateManager';
 import { useNotifications } from '../hooks/useNotifications';
 import { useClientSelection } from '../hooks/useClientSelection';
 import { useMemberships } from '../hooks/useMemberships';
+import { useWorkoutBuilder } from '../hooks/useWorkoutBuilder';
+import { useMealBuilder } from '../hooks/useMealBuilder';
+import { buildAICoachWorkoutPlan, buildAICoachMealPlan } from '../lib/aiCoach';
+import { buildClientWorkout, createWorkoutExercise } from '../lib/workoutBuilder';
+import { createEmptyMealPlan } from '../lib/mealBuilder';
+import type { ClientWorkout, ClientMealPlan, MealPlanEntry, MealTemplate, NutritionFood, WorkoutExercise, WorkoutTemplate } from '../types';
 import { 
   LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend 
 } from 'recharts';
@@ -58,6 +74,11 @@ export default function AdminDashboard() {
   const [loadAnalysis, setLoadAnalysis] = useState<{ relativeStrength: number; estimatedVolume: number; intensityZone: string } | null>(null);
   const [loadAnalyzing, setLoadAnalyzing] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [workoutBuilderDraft, setWorkoutBuilderDraft] = useState<ClientWorkout | null>(null);
+  const [workoutFavorites, setWorkoutFavorites] = useState<string[]>([]);
+  const [mealBuilderDraft, setMealBuilderDraft] = useState<ClientMealPlan | null>(null);
+  const [mealFavorites, setMealFavorites] = useState<string[]>([]);
+  const [mealRecentFoods, setMealRecentFoods] = useState<string[]>([]);
   // Vision-AI InBody analysis state — kept local so it resets per client view.
   const [inBodyAnalyzing, setInBodyAnalyzing] = useState(false);
   const [inBodyAnalysis, setInBodyAnalysis] = useState<string>('');
@@ -73,6 +94,229 @@ export default function AdminDashboard() {
     expandedClient,
     setExpandedClient,
   } = useClientSelection();
+  const {
+    templates,
+    clientWorkouts,
+    createTemplate,
+    updateTemplate,
+    deleteTemplate,
+    duplicateTemplate,
+    assignTemplate,
+    saveWorkout,
+    duplicateExercise,
+  } = useWorkoutBuilder(selectedClient?.uid);
+
+  const {
+    templates: mealTemplates,
+    mealPlans,
+    createTemplate: createMealTemplate,
+    updateTemplate: updateMealTemplate,
+    deleteTemplate: deleteMealTemplate,
+    duplicateTemplate: duplicateMealTemplate,
+    assignTemplate: assignMealTemplate,
+    savePlan: saveMealPlan,
+  } = useMealBuilder(selectedClient?.uid);
+
+  useEffect(() => {
+    if (!selectedClient?.uid) {
+      setWorkoutBuilderDraft(null);
+      return;
+    }
+
+    const existing = clientWorkouts.find(workout => workout.clientUid === selectedClient.uid);
+    if (existing) {
+      setWorkoutBuilderDraft(existing);
+      return;
+    }
+
+    const nextDraft = buildClientWorkout('New Workout', [], 'Monday', selectedClient.uid);
+    setWorkoutBuilderDraft(nextDraft);
+  }, [clientWorkouts, selectedClient]);
+
+  useEffect(() => {
+    if (!selectedClient?.uid) {
+      setMealBuilderDraft(null);
+      return;
+    }
+
+    const existing = mealPlans.find((plan) => plan.clientUid === selectedClient.uid);
+    if (existing) {
+      setMealBuilderDraft(existing);
+      return;
+    }
+
+    const nextDraft = createEmptyMealPlan(selectedClient.uid, 'Monday');
+    setMealBuilderDraft(nextDraft);
+  }, [mealPlans, selectedClient]);
+
+  const handleCreateWorkoutPlan = async (day: string) => {
+    if (!selectedClient) return;
+    const workout = buildClientWorkout('New Workout', [], day, selectedClient.uid);
+    const saved = await saveWorkout(workout);
+    if (saved) setWorkoutBuilderDraft(saved);
+  };
+
+  const handleSaveWorkoutDraft = async (workout: ClientWorkout) => {
+    const saved = await saveWorkout(workout);
+    if (saved) setWorkoutBuilderDraft(saved);
+  };
+
+  const handleDeleteWorkoutExercise = async (exerciseId: string) => {
+    if (!workoutBuilderDraft) return;
+    const nextExercises = workoutBuilderDraft.exercises.filter((exercise) => exercise.id !== exerciseId);
+    const nextWorkout = { ...workoutBuilderDraft, exercises: nextExercises };
+    await handleSaveWorkoutDraft(nextWorkout);
+  };
+
+  const handleDuplicateWorkoutExercise = async (exercise: WorkoutExercise) => {
+    if (!workoutBuilderDraft) return;
+    const copy = createWorkoutExercise(exercise);
+    const nextWorkout = { ...workoutBuilderDraft, exercises: [...workoutBuilderDraft.exercises, copy] };
+    await handleSaveWorkoutDraft(nextWorkout);
+  };
+
+  const handleReorderWorkoutExercise = async (fromIndex: number, toIndex: number) => {
+    if (!workoutBuilderDraft) return;
+    const nextExercises = [...workoutBuilderDraft.exercises];
+    const [moved] = nextExercises.splice(fromIndex, 1);
+    if (!moved) return;
+    nextExercises.splice(toIndex < 0 ? 0 : toIndex, 0, moved);
+    const nextWorkout = { ...workoutBuilderDraft, exercises: nextExercises };
+    await handleSaveWorkoutDraft(nextWorkout);
+  };
+
+  const handleAddWorkoutExercise = async (exercise: WorkoutExercise) => {
+    if (!workoutBuilderDraft) return;
+    const nextWorkout = { ...workoutBuilderDraft, exercises: [...workoutBuilderDraft.exercises, createWorkoutExercise(exercise)] };
+    await handleSaveWorkoutDraft(nextWorkout);
+  };
+
+  const handleGenerateAICoachWorkout = async () => {
+    if (!selectedClient) return;
+    const aiPlan = await buildAICoachWorkoutPlan(selectedClient);
+    const nextExercises = (aiPlan.exercises || []).map((exercise, index) => createWorkoutExercise({
+      ...exercise,
+      id: `${selectedClient.uid}-${index}`,
+      name: exercise.name,
+      arabicName: exercise.name,
+      englishName: exercise.name,
+      notes: exercise.notes,
+      sets: exercise.sets,
+      reps: exercise.reps,
+      tempo: exercise.tempo,
+      rest: exercise.rest,
+      tags: [aiPlan.split?.toLowerCase() || 'ai'],
+    }));
+    const nextWorkout = buildClientWorkout(aiPlan.title || 'AI Generated Workout', nextExercises, 'Monday', selectedClient.uid);
+    const saved = await saveWorkout(nextWorkout);
+    if (saved) setWorkoutBuilderDraft(saved);
+  };
+
+  const handleToggleFavorite = (exerciseId: string) => {
+    setWorkoutFavorites((current) => current.includes(exerciseId) ? current.filter((id) => id !== exerciseId) : [...current, exerciseId]);
+  };
+
+  const handleCreateMealPlan = async (day: string) => {
+    if (!selectedClient) return;
+    const plan = createEmptyMealPlan(selectedClient.uid, day);
+    const saved = await saveMealPlan(plan);
+    if (saved) setMealBuilderDraft(saved);
+  };
+
+  const handleSaveMealDraft = async (plan: ClientMealPlan) => {
+    const saved = await saveMealPlan(plan);
+    if (saved) setMealBuilderDraft(saved);
+  };
+
+  const handleAddMealFood = async (mealId: string, food: NutritionFood) => {
+    if (!mealBuilderDraft) return;
+    const nextMeals = mealBuilderDraft.meals.map((meal) => {
+      if (meal.id !== mealId) return meal;
+      return {
+        ...meal,
+        foods: [...(meal.foods || []), food],
+        calories: (meal.calories || 0) + (food.calories || 0),
+        protein: (meal.protein || 0) + (food.protein || 0),
+        carbs: (meal.carbs || 0) + (food.carbs || 0),
+        fat: (meal.fat || 0) + (food.fat || 0),
+        fiber: (meal.fiber || 0) + (food.fiber || 0),
+      };
+    });
+    const nextPlan = { ...mealBuilderDraft, meals: nextMeals };
+    await handleSaveMealDraft(nextPlan);
+    setMealRecentFoods((current) => [food.id || '', ...current.filter((entry) => entry !== food.id)].slice(0, 6));
+  };
+
+  const handleGenerateAICoachMeal = async () => {
+    if (!selectedClient) return;
+    const aiPlan = await buildAICoachMealPlan(selectedClient);
+    const nextMeals = (aiPlan.meals || []).map((entry, index) => ({
+      id: `${selectedClient.uid}-${index}`,
+      type: entry.type || ['Breakfast', 'Lunch', 'Dinner', 'Snack'][index] || 'Breakfast',
+      name: entry.name || 'AI Meal',
+      notes: entry.details || '',
+      calories: Math.round((aiPlan.calories || 0) / Math.max(aiPlan.meals.length, 1)),
+      protein: Math.round((aiPlan.protein || 0) / Math.max(aiPlan.meals.length, 1)),
+      carbs: Math.round((aiPlan.carbs || 0) / Math.max(aiPlan.meals.length, 1)),
+      fat: Math.round((aiPlan.fat || 0) / Math.max(aiPlan.meals.length, 1)),
+      fiber: 0,
+      foods: [],
+      completed: false,
+    }));
+    const nextPlan = { ...createEmptyMealPlan(selectedClient.uid, 'Monday'), title: aiPlan.title || 'AI Generated Meal Plan', meals: nextMeals };
+    const saved = await saveMealPlan(nextPlan);
+    if (saved) setMealBuilderDraft(saved);
+  };
+
+  const handleToggleMealFavorite = (foodId: string) => {
+    setMealFavorites((current) => current.includes(foodId) ? current.filter((id) => id !== foodId) : [...current, foodId]);
+  };
+
+  const handleCreateTemplate = async (name: string, category: WorkoutTemplate['category']) => {
+    if (!workoutBuilderDraft) return;
+    await createTemplate(name, category, workoutBuilderDraft.exercises);
+  };
+
+  const handleEditTemplate = async (template: WorkoutTemplate) => {
+    if (!workoutBuilderDraft) return;
+    await updateTemplate({ ...template, exercises: workoutBuilderDraft.exercises, updatedAt: new Date().toISOString() });
+  };
+
+  const handleDuplicateTemplate = async (template: WorkoutTemplate) => {
+    await duplicateTemplate(template);
+  };
+
+  const handleDeleteTemplate = async (templateId: string) => {
+    await deleteTemplate(templateId);
+  };
+
+  const handleAssignTemplate = async (template: WorkoutTemplate) => {
+    const saved = await assignTemplate(template, 'Monday');
+    if (saved) setWorkoutBuilderDraft(saved);
+  };
+
+  const handleCreateMealTemplate = async (name: string) => {
+    if (!mealBuilderDraft) return;
+    await createMealTemplate(name, mealBuilderDraft);
+  };
+
+  const handleEditMealTemplate = async (template: MealTemplate) => {
+    if (!mealBuilderDraft) return;
+    await updateMealTemplate({ ...template, meals: mealBuilderDraft.meals, updatedAt: new Date().toISOString() });
+  };
+
+  const handleDuplicateMealTemplate = async (template: MealTemplate) => {
+    await duplicateMealTemplate(template);
+  };
+
+  const handleDeleteMealTemplate = async (templateId: string) => {
+    await deleteMealTemplate(templateId);
+  };
+
+  const handleAssignMealTemplate = async (template: MealTemplate) => {
+    const saved = await assignMealTemplate(template, 'Monday');
+    if (saved) setMealBuilderDraft(saved);
+  };
 
   /**
    * Combines voiceTranscript + Vision InBody analysis + onboarding goals into
@@ -243,6 +487,7 @@ ${inbodyText || '(لم يتم تشغيل تحليل InBody بعد)'}
 
   const {
     membershipsRegistry,
+    clientMemberships,
     formData,
     setFormData,
     isRenewing,
@@ -260,6 +505,7 @@ ${inbodyText || '(لم يتم تشغيل تحليل InBody بعد)'}
   const [showPhysicalTestsModal, setShowPhysicalTestsModal] = useState(false);
   // Main admin navigation tabs
   const [adminMainTab, setAdminMainTab] = useState<'overview' | 'clients' | 'activity' | 'ems' | 'finance' | 'memberships'>('overview');
+  const [dashboardError, setDashboardError] = useState<string | null>(null);
   
   // AI Master Engine State
   const [aiLoading, setAiLoading] = useState<{[key: string]: boolean}>({});
@@ -410,9 +656,11 @@ ${inbodyText || '(لم يتم تشغيل تحليل InBody بعد)'}
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const clientsData = snapshot.docs.map(doc => doc.data() as UserProfile);
       setClients(clientsData);
+      setDashboardError(null);
       setLoading(false);
     }, (error) => {
       console.error("Clients listener error:", error);
+      setDashboardError('تعذر تحميل بيانات العملاء');
       setLoading(false);
     });
 
@@ -1275,6 +1523,98 @@ ${inbodyText || '(لم يتم تشغيل تحليل InBody بعد)'}
 
         {/* ── Tab: الرئيسية ──────────────────────────────────────── */}
         {adminMainTab === 'overview' && <>
+
+        <div className="mb-10">
+          <CoachDashboardAnalytics
+            clients={clients}
+            clientMemberships={clientMemberships}
+            memberships={membershipsRegistry}
+            loading={loading}
+            error={dashboardError}
+          />
+        </div>
+
+        <div className="mb-10">
+          {selectedClient ? (
+            <AICoachDashboard profile={selectedClient} />
+          ) : (
+            <div className="rounded-[2rem] border border-white/10 bg-slate-900/70 p-6 text-sm text-slate-400">
+              Select a client to generate AI coaching insights.
+            </div>
+          )}
+        </div>
+
+        {selectedClient && (
+          <div className="mb-10 space-y-8">
+            <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+              <div className="space-y-6">
+                <WorkoutPlanner
+                  workouts={clientWorkouts.filter((workout) => workout.clientUid === selectedClient.uid)}
+                  onSelectWorkout={(workout) => setWorkoutBuilderDraft(workout)}
+                  onAddWorkout={(day) => void handleCreateWorkoutPlan(day)}
+                />
+                <WorkoutBuilder
+                  workout={workoutBuilderDraft}
+                  onSave={(workout) => void handleSaveWorkoutDraft(workout)}
+                  onDeleteExercise={(exerciseId) => void handleDeleteWorkoutExercise(exerciseId)}
+                  onDuplicateExercise={(exercise) => void handleDuplicateWorkoutExercise(exercise)}
+                  onReorderExercise={(fromIndex, toIndex) => void handleReorderWorkoutExercise(fromIndex, toIndex)}
+                  onAddExercise={(exercise) => void handleAddWorkoutExercise(exercise)}
+                  onGenerateWithAI={() => void handleGenerateAICoachWorkout()}
+                />
+              </div>
+              <div className="space-y-6">
+                <ExerciseLibrary
+                  favorites={workoutFavorites}
+                  onAddExercise={(exercise) => void handleAddWorkoutExercise(exercise)}
+                  onToggleFavorite={handleToggleFavorite}
+                />
+                <WorkoutTemplateManager
+                  templates={templates}
+                  onCreateTemplate={handleCreateTemplate}
+                  onEditTemplate={handleEditTemplate}
+                  onDuplicateTemplate={handleDuplicateTemplate}
+                  onDeleteTemplate={handleDeleteTemplate}
+                  onAssignTemplate={handleAssignTemplate}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+              <div className="space-y-6">
+                <MealPlanner
+                  plans={mealPlans.filter((plan) => plan.clientUid === selectedClient.uid)}
+                  selectedPlanId={mealBuilderDraft?.id}
+                  onSelectPlan={(plan) => setMealBuilderDraft(plan)}
+                  onCreatePlan={() => void handleCreateMealPlan('Monday')}
+                />
+                <MealBuilder
+                  plan={mealBuilderDraft}
+                  onSave={(plan) => void handleSaveMealDraft(plan)}
+                  onAddFood={(mealId, food) => void handleAddMealFood(mealId, food)}
+                  onGenerateWithAI={() => void handleGenerateAICoachMeal()}
+                />
+              </div>
+              <div className="space-y-6">
+                <FoodLibrary
+                  favorites={mealFavorites}
+                  recentFoods={mealRecentFoods}
+                  onAddFood={(food) => {
+                    if (!mealBuilderDraft?.meals[0]?.id) return;
+                    void handleAddMealFood(mealBuilderDraft.meals[0].id, food);
+                  }}
+                  onToggleFavorite={handleToggleMealFavorite}
+                />
+                <MealTemplateManager
+                  templates={mealTemplates}
+                  onSelect={(template) => void handleAssignMealTemplate(template)}
+                  onDuplicate={(template) => void handleDuplicateMealTemplate(template)}
+                  onDelete={(templateId) => void handleDeleteMealTemplate(templateId)}
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Elite Dashboard Summary */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">

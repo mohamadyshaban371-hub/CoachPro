@@ -488,6 +488,78 @@ export interface FullQuestionnaire {
   submittedAt: string;
 }
 
+export interface NutritionFood {
+  id?: string;
+  arabicName: string;
+  englishName: string;
+  category: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber: number;
+  sugar?: number;
+  sodium?: number;
+  servingSize?: number;
+  unit?: string;
+  tags?: string[];
+}
+
+export interface MealPlanEntry {
+  id?: string;
+  type: string;
+  name: string;
+  foods?: NutritionFood[];
+  calories?: number;
+  protein?: number;
+  carbs?: number;
+  fat?: number;
+  fiber?: number;
+  notes?: string;
+  completed?: boolean;
+}
+
+export interface ClientMealPlan {
+  id?: string;
+  title: string;
+  clientUid: string;
+  day: string;
+  meals: MealPlanEntry[];
+  totalCalories?: number;
+  totalProtein?: number;
+  totalCarbs?: number;
+  totalFat?: number;
+  totalFiber?: number;
+  waterIntake?: number;
+  completionPercent?: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface MealTemplate {
+  id?: string;
+  name: string;
+  category?: string;
+  description?: string;
+  meals: MealPlanEntry[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface NutritionHistoryEntry {
+  id?: string;
+  clientUid: string;
+  date: string;
+  calories?: number;
+  protein?: number;
+  carbs?: number;
+  fat?: number;
+  fiber?: number;
+  waterMl?: number;
+  completed?: boolean;
+  notes?: string;
+}
+
 export interface Meal {
   name: string;
   items: string;
@@ -512,6 +584,67 @@ export interface Exercise {
   formCues?: string[];
   /** Arabic breathing rhythm cue (e.g. "شهيق أثناء النزول، زفير أثناء الدفع"). */
   breathing?: string;
+}
+
+export interface WorkoutExercise extends Exercise {
+  id?: string;
+  arabicName?: string;
+  englishName?: string;
+  muscleGroup?: string;
+  secondaryMuscles?: string[];
+  equipment?: string;
+  difficulty?: 'beginner' | 'intermediate' | 'advanced';
+  instructions?: string;
+  tags?: string[];
+  tempo?: string;
+  rest?: string;
+  rpe?: string;
+  notes?: string;
+  completed?: boolean;
+  performedWeight?: string;
+}
+
+export interface WorkoutTemplate {
+  id?: string;
+  name: string;
+  category: 'Push' | 'Pull' | 'Legs' | 'Upper' | 'Lower' | 'Full Body' | 'Arnold' | 'Bro Split' | 'Custom';
+  description?: string;
+  exercises: WorkoutExercise[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ClientWorkout {
+  id?: string;
+  title: string;
+  clientUid: string;
+  exercises: WorkoutExercise[];
+  createdAt?: string;
+  updatedAt?: string;
+  completed?: boolean;
+  completionPercent?: number;
+  day?: string;
+}
+
+export interface CompletedWorkout {
+  id?: string;
+  workoutId: string;
+  title: string;
+  clientUid: string;
+  completedAt?: string;
+  exercises: WorkoutExercise[];
+  completionPercent?: number;
+}
+
+export interface ExerciseHistoryEntry {
+  id?: string;
+  clientUid: string;
+  exerciseName: string;
+  performedWeight?: string;
+  completedAt?: string;
+  sets?: string;
+  reps?: string;
+  notes?: string;
 }
 
 export interface DayPlan {

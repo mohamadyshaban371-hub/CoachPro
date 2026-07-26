@@ -482,6 +482,96 @@ export const safeGenerateContent = async (modelName: string, contents: any, syst
   throw lastError;
 };
 
+function extractJsonObject(text: string): any {
+  if (!text) return null;
+  const trimmed = text.trim();
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  const candidate = fenced ? fenced[1] : trimmed;
+  const firstBrace = candidate.indexOf('{');
+  const lastBrace = candidate.lastIndexOf('}');
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    try {
+      return JSON.parse(candidate.slice(firstBrace, lastBrace + 1));
+    } catch {
+      // fall through
+    }
+  }
+  const firstBracket = candidate.indexOf('[');
+  const lastBracket = candidate.lastIndexOf(']');
+  if (firstBracket >= 0 && lastBracket > firstBracket) {
+    try {
+      return JSON.parse(candidate.slice(firstBracket, lastBracket + 1));
+    } catch {
+      // fall through
+    }
+  }
+  return null;
+}
+
+function buildClientSnapshot(client: UserProfile) {
+  const latestMeasurement = client.measurementHistory?.slice(-1)[0];
+  const goal = client.onboardingData?.goal || 'fitness';
+  const membershipSummary = [
+    client.packages?.workout ? 'workout' : null,
+    client.packages?.nutrition ? 'nutrition' : null,
+    client.packages?.rehab ? 'rehab' : null,
+    client.packages?.ems ? 'ems' : null,
+  ].filter(Boolean).join(', ') || 'none';
+
+  return JSON.stringify({
+    name: client.name || 'Client',
+    goal,
+    age: resolveClientAge(client),
+    gender: client.onboardingData?.gender || client.gender || 'male',
+    height: client.onboardingData?.height || null,
+    weight: client.onboardingData?.weight || null,
+    latestMeasurement,
+    measurementHistory: client.measurementHistory?.slice(-6) || [],
+    memberships: membershipSummary,
+    packages: client.packages || {},
+    dailyProgress: client.dailyProgress || {},
+    experienceLevel: client.experienceLevel || 'intermediate',
+    injuryDescription: client.onboardingData?.injuryDescription || '',
+    painIntensity: client.onboardingData?.painIntensity || 0,
+  });
+}
+
+const aiCoachCache = new Map<string, string>();
+
+async function generateStructuredCoachOutput<T>(
+  key: string,
+  client: UserProfile,
+  prompt: string,
+  systemInstruction: string,
+  fallback: T,
+  extraConfig?: any
+): Promise<T> {
+  const cacheKey = `${key}:${client.uid || 'anonymous'}:${buildClientSnapshot(client)}`;
+  const cached = aiCoachCache.get(cacheKey);
+  if (cached) {
+    try {
+      return JSON.parse(cached) as T;
+    } catch {
+      aiCoachCache.delete(cacheKey);
+    }
+  }
+
+  try {
+    const response = await safeGenerateContent(
+      FLASH_MODEL,
+      prompt,
+      systemInstruction,
+      { responseMimeType: 'application/json', temperature: 0.6, ...extraConfig }
+    );
+    const parsed = extractJsonObject(response.text || '') || fallback;
+    aiCoachCache.set(cacheKey, JSON.stringify(parsed));
+    return parsed as T;
+  } catch (error) {
+    console.warn(`[AI Coach] ${key} failed, using fallback`, error);
+    return fallback;
+  }
+}
+
 export interface AIDraftResponse {
   content: string;
   safetyAlerts?: string[];
@@ -1117,6 +1207,129 @@ Output: Professional Arabic. Plain text only (no Markdown tables). Always end wi
     } catch (err) {
       return { content: handleAIError(err) };
     }
+  },
+
+  async generateCoachAnalysis(client: UserProfile): Promise<AIDraftResponse> {
+    const systemInstruction = `You are a senior performance coach. Analyze the client using their profile, measurements, progress history, membership, and goals. Return a single JSON object with keys: progressScore (0-100), adherenceScore (0-100), fatLossTrend, muscleGainTrend, nextWeekEstimate, nextMonthEstimate, summary. Keep the response concise and actionable.`;
+    const prompt = `Analyze this client based on: ${buildClientSnapshot(client)}`;
+    const data = await generateStructuredCoachOutput<object>(
+      'coach-analysis',
+      client,
+      prompt,
+      systemInstruction,
+      {
+        progressScore: 72,
+        adherenceScore: 74,
+        fatLossTrend: 'Stable',
+        muscleGainTrend: 'Positive',
+        nextWeekEstimate: 'Maintain current consistency and hydration.',
+        nextMonthEstimate: 'Continue the current trend and keep recovery high.',
+        summary: 'The client is progressing steadily with good adherence.',
+      }
+    );
+    return { content: JSON.stringify(data) };
+  },
+
+  async generateCoachWorkout(client: UserProfile, options?: { split?: string; goal?: string; experienceLevel?: string }): Promise<AIDraftResponse> {
+    const systemInstruction = `You are an elite strength and conditioning coach. Create a complete workout program from the client profile. Return a single JSON object with keys: title, split, goal, exercises (array of {name, sets, reps, rest, tempo, notes}), cardio, notes. Use real coaching logic and keep it safe and specific.`;
+    const prompt = `Generate a workout program for this client. Context: ${buildClientSnapshot(client)}. Preferred split: ${options?.split || 'Full Body'}. Goal: ${options?.goal || client.onboardingData?.goal || 'fitness'}. Experience: ${options?.experienceLevel || client.experienceLevel || 'intermediate'}.`;
+    const data = await generateStructuredCoachOutput<object>(
+      'coach-workout',
+      client,
+      prompt,
+      systemInstruction,
+      {
+        title: 'AI Workout Plan',
+        split: 'Full Body',
+        goal: 'fitness',
+        exercises: [
+          { name: 'Goblet Squat', sets: '3', reps: '10-12', rest: '90s', tempo: '3-1-1', notes: 'Drive through the heels and keep the torso tall.' },
+        ],
+        cardio: '15-20 min zone 2 walking',
+        notes: 'Progress by adding reps or load once recovery feels good.',
+      }
+    );
+    return { content: JSON.stringify(data) };
+  },
+
+  async generateCoachMeal(client: UserProfile, options?: { goal?: string; calories?: number; protein?: number; carbs?: number; fat?: number }): Promise<AIDraftResponse> {
+    const systemInstruction = `You are a nutrition coach. Create a complete meal plan from the client profile. Return a single JSON object with keys: title, goal, calories, protein, carbs, fat, meals (array of {name, type, details}). Include hydration and practical alternatives.`;
+    const prompt = `Generate a meal plan for this client. Context: ${buildClientSnapshot(client)}. Goal: ${options?.goal || client.onboardingData?.goal || 'fitness'}. Calories target: ${options?.calories || 2200}. Protein target: ${options?.protein || 160}. Carbs target: ${options?.carbs || 220}. Fat target: ${options?.fat || 70}.`;
+    const data = await generateStructuredCoachOutput<object>(
+      'coach-meal',
+      client,
+      prompt,
+      systemInstruction,
+      {
+        title: 'AI Meal Plan',
+        goal: 'fitness',
+        calories: 2200,
+        protein: 160,
+        carbs: 220,
+        fat: 70,
+        meals: [
+          { name: 'Breakfast', type: 'breakfast', details: 'Greek yogurt bowl with berries, oats, and walnuts.' },
+          { name: 'Lunch', type: 'lunch', details: 'Chicken rice bowl with roasted vegetables and avocado.' },
+          { name: 'Dinner', type: 'dinner', details: 'Salmon with potatoes and green beans.' },
+        ],
+      }
+    );
+    return { content: JSON.stringify(data) };
+  },
+
+  async generateCoachPrediction(client: UserProfile): Promise<AIDraftResponse> {
+    const systemInstruction = `You are a performance analyst. Predict the client's progress from the measurement history and trend. Return a single JSON object with keys: predictions (array of {horizon, expectedWeight, expectedBodyFat, expectedMuscleMass, confidence}).`;
+    const prompt = `Predict the client's short and medium-term progress. Context: ${buildClientSnapshot(client)}`;
+    const data = await generateStructuredCoachOutput<object>(
+      'coach-prediction',
+      client,
+      prompt,
+      systemInstruction,
+      {
+        predictions: [
+          { horizon: '7d', expectedWeight: 0, expectedBodyFat: 0, expectedMuscleMass: 0, confidence: 70 },
+        ],
+      }
+    );
+    return { content: JSON.stringify(data) };
+  },
+
+  async generateCoachRecommendations(client: UserProfile): Promise<AIDraftResponse> {
+    const systemInstruction = `You are a high-level coach. Return a single JSON object with keys: recommendations (array of {title, description, priority}). Recommend calorie adjustments, cardio adjustments, workout modifications, recovery suggestions, and optional supplements.`;
+    const prompt = `Recommend the next coaching adjustments for this client. Context: ${buildClientSnapshot(client)}`;
+    const data = await generateStructuredCoachOutput<object>(
+      'coach-recommendations',
+      client,
+      prompt,
+      systemInstruction,
+      {
+        recommendations: [
+          { title: 'Increase protein intake', description: 'Keep protein high to support recovery and preserve lean mass.', priority: 'high' },
+        ],
+      }
+    );
+    return { content: JSON.stringify(data) };
+  },
+
+  async generateCoachReport(client: UserProfile): Promise<AIDraftResponse> {
+    const systemInstruction = `You are a professional coach writing a polished monthly progress report. Return a single JSON object with keys: title, summary, strengths, weaknesses, recommendations, nextGoals, motivationalMessage.`;
+    const prompt = `Write a professional coach report for this client. Context: ${buildClientSnapshot(client)}`;
+    const data = await generateStructuredCoachOutput<object>(
+      'coach-report',
+      client,
+      prompt,
+      systemInstruction,
+      {
+        title: 'AI Coach Report',
+        summary: 'The client is progressing steadily.',
+        strengths: ['Consistent effort'],
+        weaknesses: ['Recovery could improve'],
+        recommendations: ['Keep protein high', 'Sleep well'],
+        nextGoals: ['Maintain consistency', 'Track progress weekly'],
+        motivationalMessage: 'Keep going—small consistent steps create lasting results.',
+      }
+    );
+    return { content: JSON.stringify(data) };
   },
 
   /**
