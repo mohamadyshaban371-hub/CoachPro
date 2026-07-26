@@ -547,6 +547,8 @@ export interface Membership {
   durationType: 'monthly' | 'quarterly' | 'package';
   /** Number of months (for monthly/quarterly) or sessions (for package) */
   durationValue: number;
+  /** Preferred duration in days for new client memberships. */
+  durationDays?: number;
   /** Max EMS sessions included (0 = unlimited or N/A) */
   totalSessions: number;
   /** Service type the membership applies to */
@@ -564,14 +566,42 @@ export interface PaymentInstallment {
   note?: string;
 }
 
+export type PaymentMethod = 'cash' | 'bank_transfer' | 'card' | 'online' | 'other';
+export type PaymentStatus = 'pending' | 'paid' | 'partial' | 'overdue' | 'refunded';
+
+export interface MembershipPaymentHistoryEntry {
+  id: string;
+  type: 'payment' | 'discount' | 'adjustment' | 'renewal' | 'freeze' | 'resume';
+  amount: number;
+  method?: PaymentMethod;
+  paidAt: string;
+  note?: string;
+  status?: PaymentStatus;
+}
+
+export interface MembershipFinancialTransaction {
+  id: string;
+  type: 'payment' | 'discount' | 'adjustment' | 'renewal' | 'freeze' | 'resume' | 'manual';
+  amount: number;
+  description: string;
+  method?: PaymentMethod;
+  date: string;
+  status?: PaymentStatus | 'completed' | 'pending' | 'failed';
+  createdAt: string;
+}
+
 /** A client's active membership subscription */
 export interface ClientMembership {
   id: string;
   clientId: string;
   membershipId: string;
   membershipName: string;
+  /** Optional link to the plan document for easier reporting */
+  membershipPlanId?: string;
   /** Total price for this subscription */
   totalPrice: number;
+  /** Original plan price for this subscription */
+  membershipPrice?: number;
   /** Amount paid so far */
   amountPaid: number;
   /** Remaining = totalPrice - amountPaid */
@@ -584,10 +614,21 @@ export interface ClientMembership {
   sessionsRemaining: number;
   startDate: string;
   endDate: string;
-  status: 'active' | 'expired' | 'cancelled';
+  /** Duration in days for the active membership */
+  durationDays?: number;
+  /** Remaining days calculated from the current date */
+  remainingDays?: number;
+  status: 'active' | 'expired' | 'frozen' | 'cancelled' | 'expiring_7_days' | 'expiring_3_days' | 'expires_today';
+  discount?: number;
+  paymentMethod?: PaymentMethod;
+  paymentDate?: string;
+  paymentStatus?: PaymentStatus;
   paymentInstallments: PaymentInstallment[];
+  paymentHistory?: MembershipPaymentHistoryEntry[];
+  financialTransactions?: MembershipFinancialTransaction[];
   createdAt: string;
   updatedAt: string;
+  notes?: string;
 }
 
 /** A single EMS session check-in record */

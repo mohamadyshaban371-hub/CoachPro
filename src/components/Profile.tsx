@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { motion } from 'motion/react';
-import { Camera, Save, Loader2, User as UserIcon, Phone, Mail, ShieldCheck, Sparkles, Crown, X } from 'lucide-react';
+import { Camera, Save, Loader2, User as UserIcon, Phone, Mail, ShieldCheck, Sparkles, Crown, X, BarChart3 } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { ref as storageRef } from 'firebase/storage';
 import { db, storage, auth } from '../firebase';
@@ -8,6 +8,7 @@ import { uploadWithRetry } from '../lib/firebaseUtils';
 import { compressImage } from '../lib/imageUtils';
 import { UserProfile } from '../types';
 import BadgesPanel from './BadgesPanel';
+import ProgressTab from './ProgressTab';
 
 interface ProfileProps {
   profile: UserProfile;
@@ -34,6 +35,7 @@ export default function Profile({ profile }: ProfileProps) {
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [error, setError] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'profile' | 'progress'>('profile');
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   const isAdmin = profile.role === 'admin';
@@ -184,91 +186,111 @@ export default function Profile({ profile }: ProfileProps) {
         </div>
       </motion.section>
 
-      {/* Form card */}
       <motion.section
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.05 }}
-        className="rounded-3xl bg-slate-900/60 border border-white/5 p-6 space-y-5"
+        className="rounded-3xl bg-slate-900/60 border border-white/5 p-4 sm:p-6"
       >
-        <div className="space-y-2">
-          <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-            <UserIcon size={12} /> الاسم الكامل
-          </label>
-          <input
-            type="text"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="اكتب اسمك"
-            maxLength={60}
-            className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-4 py-3 text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-            <Phone size={12} /> رقم الموبايل
-          </label>
-          <input
-            type="tel"
-            inputMode="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value.replace(/[^\d+]/g, ''))}
-            placeholder="01XXXXXXXXX"
-            dir="ltr"
-            className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-4 py-3 text-white text-left outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition"
-          />
-          <p className="text-[10px] text-slate-500">يستخدمه الكوتش للتواصل عبر واتساب فقط.</p>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-            <Mail size={12} /> البريد الإلكتروني
-          </label>
-          <input
-            type="email"
-            value={profile.email}
-            disabled
-            dir="ltr"
-            className="w-full bg-slate-950/40 border border-white/5 rounded-2xl px-4 py-3 text-slate-500 text-left cursor-not-allowed"
-          />
-          <p className="text-[10px] text-slate-600">لا يمكن تعديل البريد بعد التسجيل.</p>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest">
-            نبذة قصيرة
-          </label>
-          <textarea
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
-            rows={3}
-            maxLength={200}
-            placeholder="اكتب جملة قصيرة عن نفسك أو هدفك (هتظهر في حائط الأبطال)..."
-            className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-4 py-3 text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition resize-none"
-          />
-          <div className="flex justify-end text-[10px] text-slate-500 tabular-nums">{bio.length} / 200</div>
-        </div>
-
-        {error && (
-          <div className="rounded-2xl bg-rose-500/10 border border-rose-500/30 p-3 text-rose-300 text-sm">
-            {error}
-          </div>
-        )}
-
-        <div className="flex items-center justify-between gap-3 pt-2">
-          <p className="text-[11px] text-slate-500">
-            {savedAt ? '✓ تم الحفظ' : 'التعديلات تُحفظ مباشرة على ملفك.'}
-          </p>
+        <div className="flex flex-wrap gap-2 mb-5">
           <button
-            onClick={handleSave}
-            disabled={saving}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-sm shadow-lg shadow-blue-500/30 transition"
+            onClick={() => setActiveTab('profile')}
+            className={`rounded-2xl px-4 py-2 text-sm font-bold transition ${activeTab === 'profile' ? 'bg-blue-600 text-white' : 'bg-slate-950/60 text-slate-400'}`}
           >
-            {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
-            حفظ التعديلات
+            الملف الشخصي
+          </button>
+          <button
+            onClick={() => setActiveTab('progress')}
+            className={`rounded-2xl px-4 py-2 text-sm font-bold transition ${activeTab === 'progress' ? 'bg-blue-600 text-white' : 'bg-slate-950/60 text-slate-400'}`}
+          >
+            <span className="inline-flex items-center gap-1.5"><BarChart3 size={14} /> التقدم والقياسات</span>
           </button>
         </div>
+
+        {activeTab === 'profile' ? (
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                <UserIcon size={12} /> الاسم الكامل
+              </label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="اكتب اسمك"
+                maxLength={60}
+                className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-4 py-3 text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                <Phone size={12} /> رقم الموبايل
+              </label>
+              <input
+                type="tel"
+                inputMode="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value.replace(/[^\d+]/g, ''))}
+                placeholder="01XXXXXXXXX"
+                dir="ltr"
+                className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-4 py-3 text-white text-left outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition"
+              />
+              <p className="text-[10px] text-slate-500">يستخدمه الكوتش للتواصل عبر واتساب فقط.</p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                <Mail size={12} /> البريد الإلكتروني
+              </label>
+              <input
+                type="email"
+                value={profile.email}
+                disabled
+                dir="ltr"
+                className="w-full bg-slate-950/40 border border-white/5 rounded-2xl px-4 py-3 text-slate-500 text-left cursor-not-allowed"
+              />
+              <p className="text-[10px] text-slate-600">لا يمكن تعديل البريد بعد التسجيل.</p>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest">
+                نبذة قصيرة
+              </label>
+              <textarea
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                rows={3}
+                maxLength={200}
+                placeholder="اكتب جملة قصيرة عن نفسك أو هدفك (هتظهر في حائط الأبطال)..."
+                className="w-full bg-slate-950/60 border border-white/10 rounded-2xl px-4 py-3 text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition resize-none"
+              />
+              <div className="flex justify-end text-[10px] text-slate-500 tabular-nums">{bio.length} / 200</div>
+            </div>
+
+            {error && (
+              <div className="rounded-2xl bg-rose-500/10 border border-rose-500/30 p-3 text-rose-300 text-sm">
+                {error}
+              </div>
+            )}
+
+            <div className="flex items-center justify-between gap-3 pt-2">
+              <p className="text-[11px] text-slate-500">
+                {savedAt ? '✓ تم الحفظ' : 'التعديلات تُحفظ مباشرة على ملفك.'}
+              </p>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-sm shadow-lg shadow-blue-500/30 transition"
+              >
+                {saving ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                حفظ التعديلات
+              </button>
+            </div>
+          </div>
+        ) : (
+          <ProgressTab profile={profile} />
+        )}
       </motion.section>
 
       {/* Achievements grid — pure derivation from the profile snapshot. */}

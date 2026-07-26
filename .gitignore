@@ -51,3 +51,4 @@ Thumbs.db
 # Capacitor Android (generated — built by GitHub Actions)
 android/
 node_modules/
+.env

@@ -25,6 +25,7 @@ import EMSAttendance from './EMSAttendance';
 import FinancialDashboard from './FinancialDashboard';
 import { useNotifications } from '../hooks/useNotifications';
 import { useClientSelection } from '../hooks/useClientSelection';
+import { useMemberships } from '../hooks/useMemberships';
 import { 
   LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend 
 } from 'recharts';
@@ -38,8 +39,6 @@ export default function AdminDashboard() {
   const [isAdding, setIsAdding] = useState(false);
   const [activeModalTab, setActiveModalTab] = useState<'profile' | 'progress' | 'chat'>('profile');
   const [selectedQuestionnaire, setSelectedQuestionnaire] = useState<FullQuestionnaire | null>(null);
-  const [isRenewing, setIsRenewing] = useState(false);
-  const [isActivating, setIsActivating] = useState<UserProfile | null>(null);
   const [isSettingPlan, setIsSettingPlan] = useState<UserProfile | null>(null);
   const [planData, setPlanData] = useState({
     workout: '',
@@ -241,6 +240,17 @@ ${inbodyText || '(لم يتم تشغيل تحليل InBody بعد)'}
   const [messagesSearch, setMessagesSearch] = useState('');
   const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
   const [predictionResults, setPredictionResults] = useState<{[uid: string]: string}>({});
+
+  const {
+    membershipsRegistry,
+    formData,
+    setFormData,
+    isRenewing,
+    setIsRenewing,
+    isActivating,
+    setIsActivating,
+    handleRenew,
+  } = useMemberships({ setLoading, setMessage });
   const [isExportingPDF, setIsExportingPDF] = useState(false);
   const [isRequestingAssessment, setIsRequestingAssessment] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
@@ -355,36 +365,6 @@ ${inbodyText || '(لم يتم تشغيل تحليل InBody بعد)'}
     }
   };
 
-  // Memberships registry — loaded once for EMS package dropdowns
-  const [membershipsRegistry, setMembershipsRegistry] = useState<import('../types').Membership[]>([]);
-  useEffect(() => {
-    const unsub = onSnapshot(collection(db, 'memberships'), snap =>
-      setMembershipsRegistry(snap.docs.map(d => ({ id: d.id, ...d.data() } as import('../types').Membership)))
-    );
-    return () => unsub();
-  }, []);
-
-  // Form state
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    gender: 'male' as 'male' | 'female',
-    packages: {
-      workout: false,
-      nutrition: false,
-      rehab: false,
-      ems: false
-    },
-    workoutMonths: 1,
-    nutritionMonths: 1,
-    rehabMonths: 1,
-    emsSessions: 12,
-    emsMembershipId: '',
-    workoutMembershipId: '',
-    nutritionMembershipId: '',
-    rehabMembershipId: '',
-  });
 
   useEffect(() => {
     const fetchQuestionnaire = async () => {
@@ -631,37 +611,6 @@ ${inbodyText || '(لم يتم تشغيل تحليل InBody بعد)'}
     } catch (error) {
       console.error('Delete error:', error);
       setMessage({ text: 'خطأ في الاتصال بالسيرفر', type: 'error' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRenew = async (uid: string, newPackages: PackageConfig) => {
-    try {
-      setLoading(true);
-      const userRef = doc(db, 'users', uid);
-      
-      // Calculate new expiry date (e.g., based on the longest package)
-      let maxMonths = 0;
-      if (newPackages.workout) maxMonths = Math.max(maxMonths, newPackages.workout.months);
-      if (newPackages.nutrition) maxMonths = Math.max(maxMonths, newPackages.nutrition.months);
-      if (newPackages.rehab) maxMonths = Math.max(maxMonths, newPackages.rehab.months);
-      
-      const expiryDate = new Date();
-      expiryDate.setMonth(expiryDate.getMonth() + (maxMonths || 1));
-
-      await updateDoc(userRef, {
-        packages: newPackages,
-        expiryDate: expiryDate.toISOString(),
-        isActivated: true, // Ensure they are activated on renewal
-        questionnaireComplete: false // REQUIREMENT: Reset survey on membership update
-      });
-      
-      setMessage({ text: 'تم تجديد الاشتراك بنجاح ✅', type: 'success' });
-      setIsRenewing(false);
-      setTimeout(() => setMessage(null), 3000);
-    } catch (error: any) {
-      setMessage({ text: 'خطأ في التجديد: ' + error.message, type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -4381,7 +4330,7 @@ ${inbodyText || '(لم يتم تشغيل تحليل InBody بعد)'}
 
         {/* ── Tab: العضويات ──────────────────────────────────────── */}
         {adminMainTab === 'memberships' && (
-          <MembershipManager />
+          <MembershipManager clients={clients} />
         )}
 
         {/* ── Tab: المالية ────────────────────────────────────────── */}

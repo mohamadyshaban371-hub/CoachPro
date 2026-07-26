@@ -148,6 +148,18 @@ service cloud.firestore {
       );
     }
 
+    // MEMBERSHIP PLANS
+    match /memberships/{membershipId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // CLIENT MEMBERSHIPS
+    match /clientMemberships/{membershipId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
     // CHAMPIONS FEED — community wall, comments, and one level of replies.
     // Any signed-in user reads. Author or admin can delete. Likes are
     // self-managed via arrayUnion/arrayRemove on the user's own UID.
