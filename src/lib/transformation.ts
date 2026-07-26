@@ -1,4 +1,4 @@
-import type { TransformationPhoto, TransformationReport, TransformationSession, UserProfile } from '../types';
+import type { MeasurementHistory, TransformationPhoto, TransformationReport, TransformationSession, UserProfile } from '../types';
 import { safeGenerateContent } from '../services/aiMasterEngine';
 
 export const TRANSFORMATION_POSITIONS = ['front', 'side', 'back'] as const;
@@ -23,6 +23,55 @@ export function createTransformationSession(input: Partial<TransformationSession
     updatedAt: input.updatedAt || now,
     thumbnail: input.thumbnail || '',
   };
+}
+
+export function createTransformationSessionFromMeasurementHistory(input: {
+  userId: string;
+  current: MeasurementHistory;
+  previous?: MeasurementHistory;
+  notes?: string;
+  coachNotes?: string;
+}): TransformationSession {
+  const now = input.current.date || new Date().toISOString();
+  const photos = Object.entries(input.current.photos || {})
+    .filter(([, value]) => Boolean(value))
+    .map(([position, url], index) => ({
+      id: `photo-${index + 1}`,
+      url: String(url),
+      position,
+      uploadedAt: now,
+    } as TransformationPhoto));
+
+  const measurements: Record<string, number | string | undefined> = {
+    weight: input.current.weight,
+    fatPercentage: input.current.fatPercentage,
+    muscleMass: input.current.muscleMass,
+    waterPercentage: input.current.waterPercentage,
+    protein: input.current.protein,
+  };
+
+  if (input.previous) {
+    measurements.previousWeight = input.previous.weight;
+    measurements.previousFatPercentage = input.previous.fatPercentage;
+    measurements.previousMuscleMass = input.previous.muscleMass;
+    measurements.previousWaterPercentage = input.previous.waterPercentage;
+    measurements.weightDelta = input.current.weight - input.previous.weight;
+    measurements.fatDelta = input.current.fatPercentage - input.previous.fatPercentage;
+    measurements.muscleDelta = input.current.muscleMass - input.previous.muscleMass;
+  }
+
+  return createTransformationSession({
+    userId: input.userId,
+    date: now,
+    weight: input.current.weight,
+    bodyFat: input.current.fatPercentage,
+    muscleMass: input.current.muscleMass,
+    measurements,
+    photos,
+    notes: input.notes || 'Progress entry captured from the fitness dashboard.',
+    coachNotes: input.coachNotes || '',
+    thumbnail: photos[0]?.url || '',
+  });
 }
 
 export function formatTransformationDate(value: string) {

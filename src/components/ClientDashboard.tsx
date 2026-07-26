@@ -18,6 +18,7 @@ import SmartwatchPanel from './SmartwatchPanel';
 import PeriodTracker from './PeriodTracker';
 import PointsBadge from './PointsBadge';
 import DashboardShell, { ShellTab } from './DashboardShell';
+import NotificationCenter from './NotificationCenter';
 import { playClick, playNotify, playSuccess } from '../lib/sounds';
 import { awardCoins } from '../lib/gamification';
 import { useI18n } from '../lib/i18n';
@@ -187,6 +188,7 @@ export default function ClientDashboard({ profile: initialProfile }: ClientDashb
   // Notifications State
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [notificationCenterOpen, setNotificationCenterOpen] = useState(false);
 
   useEffect(() => {
     if (!profile.uid) return;
@@ -220,7 +222,9 @@ export default function ClientDashboard({ profile: initialProfile }: ClientDashb
         }, 1200);
         return () => clearTimeout(delay);
       }
-    } catch {}
+    } catch (error) {
+      console.warn('[ClientDashboard] celebration storage write failed:', error);
+    }
     return undefined;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile.uid, profile.isActivated]);
@@ -1066,7 +1070,10 @@ export default function ClientDashboard({ profile: initialProfile }: ClientDashb
         <Refrigerator size={18} />
       </button>
       <button
-        onClick={() => setShowNotifications(!showNotifications)}
+        onClick={() => {
+          setShowNotifications(false);
+          setNotificationCenterOpen(true);
+        }}
         className="relative p-2.5 app-text-muted hover:app-text rounded-xl transition-all border app-border bg-white/40 dark:bg-white/5"
         title={t('action.notifications')}
       >
@@ -1094,6 +1101,17 @@ export default function ClientDashboard({ profile: initialProfile }: ClientDashb
       onTabChange={(k) => setActiveTab(k as typeof activeTab)}
       headerActions={headerActions}
     >
+      <NotificationCenter
+        userId={profile.uid}
+        open={notificationCenterOpen}
+        onClose={() => setNotificationCenterOpen(false)}
+        onUnreadCountChange={(count) => {
+          if (count !== unreadCount) {
+            setNotifications((prev) => prev.map((note) => ({ ...note, read: note.read ?? !note.isRead })));
+          }
+        }}
+      />
+
       {/* Notifications dropdown — opens when bell is clicked */}
       <AnimatePresence>
         {showNotifications && (
@@ -1343,7 +1361,11 @@ export default function ClientDashboard({ profile: initialProfile }: ClientDashb
               </div>
             </div>
           </div>
-          {profile.dailyProgress?.[new Date().toISOString().split('T')[0]]?.energyLevel !== undefined && profile.dailyProgress?.[new Date().toISOString().split('T')[0]]?.energyLevel! < 4 && (
+          {(() => {
+            const todayKey = new Date().toISOString().split('T')[0];
+            const energyLevel = profile.dailyProgress?.[todayKey]?.energyLevel;
+            return energyLevel !== undefined && energyLevel < 4;
+          })() && (
             <div className="p-4 bg-orange-600/10 border border-orange-500/20 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center gap-3 text-orange-400">
               <ShieldAlert size={18} className="shrink-0" />
               <p className="text-xs font-bold font-sans flex-1">طاقتك منخفضة النهاردة.. الذكاء الاصطناعي يقدر يحضّر لك جلسة استشفاء بديلة بدل التمرين الثقيل.</p>

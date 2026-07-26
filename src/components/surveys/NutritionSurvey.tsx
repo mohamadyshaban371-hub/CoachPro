@@ -115,7 +115,11 @@ export default function NutritionSurvey({ userId, gender, initialData, onComplet
       audioChunksRef.current = [];
       recorder.ondataavailable = (ev) => { if (ev.data.size > 0) audioChunksRef.current.push(ev.data); };
       recorder.onstop = async () => {
-        try { stream.getTracks().forEach(t => t.stop()); } catch {}
+        try {
+          stream.getTracks().forEach((t) => t.stop());
+        } catch (error) {
+          console.warn('[NutritionSurvey] failed to stop mic stream:', error);
+        }
         const blob = new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' });
         if (blob.size === 0) { setIsTranscribing(false); return; }
         setIsTranscribing(true);
@@ -167,7 +171,11 @@ export default function NutritionSurvey({ userId, gender, initialData, onComplet
 
   const stopNotesRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
-      try { mediaRecorderRef.current.stop(); } catch {}
+      try {
+        mediaRecorderRef.current.stop();
+      } catch (error) {
+        console.warn('[NutritionSurvey] failed to stop recording:', error);
+      }
       setIsRecording(false);
     }
   };

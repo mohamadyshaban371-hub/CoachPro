@@ -89,13 +89,19 @@ export interface AppNotification {
   id: string;
   userId: string;
   title: string;
-  message: string;
-  type: 'birthday' | 'inactivity' | 'system' | 'custom' | 'plan_update' | 'questionnaire' | 'assessment_complete' | 'plan_published';
-  isRead: boolean;
+  body?: string;
+  message?: string;
+  type: 'membership' | 'progress' | 'workout' | 'nutrition' | 'coach' | 'birthday' | 'inactivity' | 'system' | 'custom' | 'plan_update' | 'questionnaire' | 'assessment_complete' | 'plan_published' | 'ai';
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  isRead?: boolean;
+  read?: boolean;
+  archived?: boolean;
   createdAt: string;
+  actionUrl?: string;
   /** Optional reference uid of the client who triggered the notification */
   clientUid?: string;
   clientName?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface PackageConfig {
@@ -248,6 +254,49 @@ export interface MeasurementHistory {
     side: string;
     inBody: string;
   };
+}
+
+export interface TransformationPhoto {
+  id?: string;
+  url: string;
+  position?: 'front' | 'side' | 'back' | string;
+  storagePath?: string;
+  caption?: string;
+  uploadedAt?: string;
+}
+
+export interface TransformationSession {
+  id?: string;
+  userId: string;
+  sessionId?: string;
+  date: string;
+  weight?: number;
+  bodyFat?: number;
+  muscleMass?: number;
+  bmi?: number;
+  notes?: string;
+  coachNotes?: string;
+  measurements?: Record<string, number | string | undefined>;
+  photos?: TransformationPhoto[];
+  aiReportId?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  thumbnail?: string;
+}
+
+export interface TransformationReport {
+  id?: string;
+  userId: string;
+  sessionId?: string;
+  summary: string;
+  fatLossEstimation?: string;
+  muscleGainEstimation?: string;
+  postureObservations?: string;
+  weakPoints?: string[];
+  strengths?: string[];
+  recommendations?: string[];
+  motivationSummary?: string;
+  generatedAt?: string;
 }
 
 export interface OnboardingData {

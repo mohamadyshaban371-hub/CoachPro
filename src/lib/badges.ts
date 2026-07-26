@@ -76,7 +76,7 @@ export function computeStreak(profile: UserProfile): number {
   // logged yet) but stop at the first gap.
   const today = new Date();
   let streak = 0;
-  let cursor = new Date(today);
+  const cursor = new Date(today);
   // If today isn't logged yet, start counting from yesterday so an early-morning
   // visit doesn't show 0.
   if (!isLogged(cursor.toISOString().split('T')[0])) {

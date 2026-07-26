@@ -77,7 +77,11 @@ function loadCache(): DigestCache | null {
 }
 
 function saveCache(c: DigestCache) {
-  try { localStorage.setItem(CACHE_KEY, JSON.stringify(c)); } catch {}
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(c));
+  } catch (error) {
+    console.warn('[AdminDigest] cache save failed:', error);
+  }
 }
 
 /**

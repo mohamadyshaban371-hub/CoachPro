@@ -261,7 +261,7 @@ export default function ChampionsFeed({ profile }: ChampionsFeedProps) {
     const text = composerText.trim();
     if ((!text && pending.length === 0) || posting) return;
     setPosting(true);
-    let media: FeedMedia[] = [];
+    let media: FeedMedia[];
     try {
       // Phase 2 / item #8 — explicit media-failure path. Earlier the post
       // would silently fall through to addDoc with `media: []` if the

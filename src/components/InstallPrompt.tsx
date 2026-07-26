@@ -77,7 +77,7 @@ export default function InstallPrompt() {
             className="fixed bottom-3 inset-x-3 sm:inset-x-auto sm:right-4 sm:bottom-4 sm:max-w-sm z-[200]"
             dir="rtl"
           >
-            <div className="rounded-3xl bg-gradient-to-br from-slate-900 to-slate-950 border border-blue-500/20 shadow-2xl shadow-blue-500/10 p-4 backdrop-blur">
+            <div className="rounded-3xl bg-gradient-to-br from-slate-900 to-slate-950 border border-blue-500/20 shadow-2xl shadow-blue-500/10 p-4 backdrop-blur" role="dialog" aria-live="polite" aria-label="تثبيت التطبيق">
               <div className="flex items-start gap-3">
                 <div className="shrink-0 w-11 h-11 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-700 flex items-center justify-center shadow-lg ring-1 ring-white/10">
                   <Download size={20} className="text-white" />
@@ -90,14 +90,14 @@ export default function InstallPrompt() {
                   <div className="flex items-center gap-2 mt-3">
                     <button
                       onClick={handleInstall}
-                      className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-[12px] font-bold shadow-lg shadow-blue-500/30 transition"
+                      className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-[12px] font-bold shadow-lg shadow-blue-500/30 transition focus:outline-none focus:ring-2 focus:ring-blue-400"
                     >
                       تثبيت الآن
                     </button>
                     {notifPerm !== 'granted' && notifPerm !== 'denied' && (
                       <button
                         onClick={handleEnableNotifications}
-                        className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-[12px] font-bold border border-white/5 transition flex items-center gap-1"
+                        className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-[12px] font-bold border border-white/5 transition flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-slate-400"
                       >
                         <Bell size={12} /> تفعيل التنبيهات
                       </button>
@@ -106,7 +106,7 @@ export default function InstallPrompt() {
                 </div>
                 <button
                   onClick={handleDismiss}
-                  className="shrink-0 -mt-1 -me-1 p-1.5 rounded-lg text-slate-500 hover:text-slate-200 hover:bg-white/5 transition"
+                  className="shrink-0 -mt-1 -me-1 p-1.5 rounded-lg text-slate-500 hover:text-slate-200 hover:bg-white/5 transition focus:outline-none focus:ring-2 focus:ring-blue-400"
                   aria-label="إغلاق"
                 >
                   <X size={16} />
@@ -160,7 +160,7 @@ export default function InstallPrompt() {
               </ol>
               <button
                 onClick={() => setShowIOSHelp(false)}
-                className="mt-5 w-full py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm transition"
+                className="mt-5 w-full py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm transition focus:outline-none focus:ring-2 focus:ring-blue-400"
               >
                 تمام
               </button>

@@ -180,7 +180,9 @@ function readInitial(): Locale {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved === 'ar' || saved === 'en') return saved;
-  } catch {}
+  } catch (error) {
+    console.warn('[i18n] unable to read locale preference:', error);
+  }
   return 'ar';
 }
 

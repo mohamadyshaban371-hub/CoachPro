@@ -2,6 +2,7 @@ import { initializeApp, FirebaseOptions } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, browserLocalPersistence, setPersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { getMessaging, isSupported } from 'firebase/messaging';
 import firebaseConfig from '../firebase-applet-config.json';
 
 /**
@@ -99,5 +100,10 @@ try {
 export { db };
 
 export const storage = getStorage(app);
+
+export const messagingPromise = isSupported().then((supported) => {
+  if (!supported) return null;
+  return getMessaging(app);
+});
 
 export default app;

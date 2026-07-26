@@ -17,6 +17,12 @@ export function registerPWA() {
     const swUrl = `${import.meta.env.BASE_URL || '/'}sw.js`;
     navigator.serviceWorker
       .register(swUrl, { scope: import.meta.env.BASE_URL || '/' })
+      .then((registration) => {
+        registration.update();
+        if (registration.waiting) {
+          window.dispatchEvent(new CustomEvent('pwa:update-available'));
+        }
+      })
       .catch((err) => console.warn('[PWA] Service worker registration failed:', err));
   });
 }

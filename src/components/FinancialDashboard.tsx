@@ -85,7 +85,7 @@ export default function FinancialDashboard({ clients }: Props) {
     try {
       const now = new Date().toISOString();
       // Calculate end date
-      let endDate = new Date(assignForm.startDate);
+      const endDate = new Date(assignForm.startDate);
       if (mem.durationType === 'quarterly') {
         endDate.setMonth(endDate.getMonth() + 3);
       } else if (mem.durationType === 'monthly') {

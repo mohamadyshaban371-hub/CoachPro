@@ -1,5 +1,6 @@
 import { auth } from '../firebase';
 import { FirestoreErrorInfo } from '../types';
+import { logProductionEvent } from './logging';
 
 export function handleFirestoreError(error: unknown, operationType: 'create' | 'update' | 'delete' | 'list' | 'get' | 'write', path: string | null) {
   const errInfo: FirestoreErrorInfo = {
@@ -20,6 +21,7 @@ export function handleFirestoreError(error: unknown, operationType: 'create' | '
     operationType,
     path
   };
+  logProductionEvent({ level: 'error', message: 'firestore-write-failed', details: errInfo as unknown as Record<string, unknown> });
   console.error('Firestore Error: ', JSON.stringify(errInfo));
   throw new Error(JSON.stringify(errInfo));
 }

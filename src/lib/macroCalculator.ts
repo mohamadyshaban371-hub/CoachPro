@@ -170,7 +170,7 @@ export function calculateMacros(input: MacroInput): MacroOutput {
   const bmr = calculateBMR(weightKg, heightCm, age, gender);
   const mult = resolveActivityMultiplier(activityLevel, workoutFrequencyPerWeek);
   const tdee = Math.round(bmr * mult);
-  let baseCalories = Math.round(tdee * GOAL_CAL_FACTOR[goal]);
+  const baseCalories = Math.round(tdee * GOAL_CAL_FACTOR[goal]);
 
   // Auto-adjust calories based on weight trend
   const { adjustment, trend } = computeWeightTrendAdjustment(goal, weightHistory || []);

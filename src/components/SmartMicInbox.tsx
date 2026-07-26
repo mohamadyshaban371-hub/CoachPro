@@ -87,7 +87,9 @@ function loadHandled(): Record<string, true> {
 function persistHandled(map: Record<string, true>) {
   try {
     localStorage.setItem(HANDLED_STORAGE_KEY, JSON.stringify(map));
-  } catch {}
+  } catch (error) {
+    console.warn('[SmartMicInbox] unable to read handled state:', error);
+  }
 }
 
 function relativeTime(d: Date): string {
@@ -185,7 +187,8 @@ export default function SmartMicInbox({ adminUid, clients = [] }: SmartMicInboxP
             } else {
               next[uid] = { name: 'عميل غير معروف' };
             }
-          } catch {
+          } catch (error) {
+            console.warn('[SmartMicInbox] unable to hydrate sender:', uid, error);
             next[uid] = { name: 'عميل' };
           }
         }),

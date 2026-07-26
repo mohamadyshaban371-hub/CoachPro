@@ -57,8 +57,8 @@ export default function Lightbox({ images, startIndex = 0, onClose }: LightboxPr
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
-      else if (e.key === 'ArrowRight') hasMany && prev(); // RTL: right = previous
-      else if (e.key === 'ArrowLeft') hasMany && next();
+      else if (e.key === 'ArrowRight' && hasMany) prev(); // RTL: right = previous
+      else if (e.key === 'ArrowLeft' && hasMany) next();
       else if (e.key === '+' || e.key === '=') setZoom((z) => Math.min(z + 0.5, 5));
       else if (e.key === '-') setZoom((z) => Math.max(z - 0.5, 1));
     };

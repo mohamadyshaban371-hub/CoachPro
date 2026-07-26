@@ -8,6 +8,9 @@ import {
 } from 'lucide-react';
 import { UserProfile, MeasurementHistory } from '../types';
 import { compressImage } from '../lib/imageUtils';
+import { createTransformationSessionFromMeasurementHistory } from '../lib/transformation';
+import { enqueueOfflineAction, saveOfflineSnapshot } from '../lib/offline';
+import { sanitizeUserContent } from '../lib/sanitize';
 
 interface Props {
   profile: UserProfile;
@@ -101,10 +104,37 @@ export default function ProgressUpdate({ profile, onClose }: Props) {
         },
       };
 
-      await updateDoc(doc(db, 'users', profile.uid), {
-        measurementHistory: arrayUnion(entry),
-        lastMeasurementSubmittedAt: now,
+      const safeEntry: MeasurementHistory = {
+        ...entry,
+        photos: {
+          front: photos.front || '',
+          side: photos.side || '',
+          inBody: photos.inBody || '',
+        },
+      };
+      const safeNotes = sanitizeUserContent('Progress entry captured from the dashboard update flow.');
+      const safeTransformation = createTransformationSessionFromMeasurementHistory({
+        userId: profile.uid,
+        current: safeEntry,
+        previous: previous,
+        notes: safeNotes,
       });
+
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        saveOfflineSnapshot('measurements', safeEntry);
+        enqueueOfflineAction({
+          id: `${profile.uid}-${Date.now()}`,
+          action: 'save-measurement',
+          payload: { uid: profile.uid, measurement: safeEntry, timestamp: now },
+          createdAt: now,
+        });
+      } else {
+        await updateDoc(doc(db, 'users', profile.uid), {
+          measurementHistory: arrayUnion(safeEntry),
+          lastMeasurementSubmittedAt: now,
+          transformationSessions: arrayUnion(safeTransformation),
+        });
+      }
 
       setNewEntry(entry);
       setStep('compare');

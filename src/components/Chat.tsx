@@ -202,7 +202,11 @@ export default function Chat({ currentUserId, currentUserName, targetUserId, tar
   };
 
   const stopRecording = () => {
-    try { recorderRef.current?.stop(); } catch {}
+    try {
+      recorderRef.current?.stop();
+    } catch (error) {
+      console.warn('[Chat] failed to stop recording:', error);
+    }
   };
 
   const transcribeBlob = async (blob: Blob, mimeType: string) => {
@@ -300,14 +304,22 @@ export default function Chat({ currentUserId, currentUserName, targetUserId, tar
   };
 
   const stopSpeaking = () => {
-    try { window.speechSynthesis?.cancel(); } catch {}
+    try {
+      window.speechSynthesis?.cancel();
+    } catch (error) {
+      console.warn('[Chat] failed to stop speech synthesis:', error);
+    }
     setSpeaking(false);
   };
 
   const toggleTts = () => {
     setTtsOn((v) => {
       const next = !v;
-      try { localStorage.setItem('coachpro:tts', next ? '1' : '0'); } catch {}
+      try {
+        localStorage.setItem('coachpro:tts', next ? '1' : '0');
+      } catch (error) {
+        console.warn('[Chat] failed to persist TTS preference:', error);
+      }
       if (!next) stopSpeaking();
       return next;
     });

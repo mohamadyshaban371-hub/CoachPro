@@ -1,5 +1,6 @@
 import React from 'react';
 import { auth } from '../firebase';
+import { reportCrash } from '../lib/logging';
 
 interface State {
   error: Error | null;
@@ -22,6 +23,7 @@ export default class ErrorBoundary extends React.Component<{ children: React.Rea
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error('[ErrorBoundary] Caught render error:', error, info);
+    reportCrash(error, 'error-boundary');
   }
 
   private handleReload = () => {
@@ -30,7 +32,11 @@ export default class ErrorBoundary extends React.Component<{ children: React.Rea
   };
 
   private handleSignOut = async () => {
-    try { await auth.signOut(); } catch {}
+    try {
+      await auth.signOut();
+    } catch (error) {
+      console.warn('[ErrorBoundary] sign-out failed:', error);
+    }
     this.setState({ error: null });
     window.location.hash = '';
     window.location.reload();
@@ -53,13 +59,15 @@ export default class ErrorBoundary extends React.Component<{ children: React.Rea
           <div className="flex gap-3">
             <button
               onClick={this.handleReload}
-              className="flex-1 bg-blue-600 hover:bg-blue-500 py-3 rounded-xl font-bold transition-all"
+              className="flex-1 bg-blue-600 hover:bg-blue-500 py-3 rounded-xl font-bold transition-all focus:outline-none focus:ring-2 focus:ring-blue-400"
+              aria-label="إعادة تحميل التطبيق"
             >
               إعادة تحميل
             </button>
             <button
               onClick={this.handleSignOut}
-              className="flex-1 bg-slate-800 hover:bg-slate-700 py-3 rounded-xl font-bold text-slate-300 transition-all"
+              className="flex-1 bg-slate-800 hover:bg-slate-700 py-3 rounded-xl font-bold text-slate-300 transition-all focus:outline-none focus:ring-2 focus:ring-slate-400"
+              aria-label="تسجيل الخروج وإعادة تحميل التطبيق"
             >
               تسجيل الخروج
             </button>

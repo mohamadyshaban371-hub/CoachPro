@@ -31,7 +31,11 @@ const tone = (freq: number, durationMs: number, type: OscillatorType = 'sine', g
   const c = ctx();
   if (!c) return;
   try {
-    if (c.state === 'suspended') c.resume().catch(() => {});
+    if (c.state === 'suspended') {
+      c.resume().catch((error) => {
+        console.warn('[sounds] audio context resume failed:', error);
+      });
+    }
     const osc = c.createOscillator();
     const g = c.createGain();
     osc.type = type;
@@ -43,7 +47,9 @@ const tone = (freq: number, durationMs: number, type: OscillatorType = 'sine', g
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + durationMs / 1000);
     osc.start(t0);
     osc.stop(t0 + durationMs / 1000);
-  } catch {}
+  } catch (error) {
+    console.warn('[sounds] tone playback failed:', error);
+  }
 };
 
 /** Soft "tap" for primary button clicks. */

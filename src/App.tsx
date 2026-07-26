@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
-import { UserProfile } from './types';
+import { collection, doc, getDocs, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { UserProfile, ClientMembership } from './types';
 import Login from './components/Login';
 import ErrorBoundary from './components/ErrorBoundary';
+import { initializeFirebaseMessaging } from './services/firebaseMessaging';
+import { startNotificationScheduler } from './services/notificationScheduler';
 
 // Heavy authenticated views are code-split so the public Login screen ships
 // the smallest possible JS bundle and renders instantly. AdminDashboard alone
@@ -46,6 +48,7 @@ export default function App() {
   // Because onAuthStateChanged ignores callback return values, we manage
   // cleanup ourselves via this ref so we don't leak listeners on re-auth.
   const activeProfileUnsub = useRef<(() => void) | null>(null);
+  const schedulerCleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -67,9 +70,27 @@ export default function App() {
 
         // Real-time profile listener so admin activations land instantly.
         const userRef = doc(db, 'users', firebaseUser.uid);
-        const unsubProfile = onSnapshot(userRef, (docSnap) => {
+        const unsubProfile = onSnapshot(userRef, async (docSnap) => {
           if (docSnap.exists()) {
-            setProfile(docSnap.data() as UserProfile);
+            const nextProfile = docSnap.data() as UserProfile;
+            setProfile(nextProfile);
+
+            try {
+              const membershipsQuery = query(
+                collection(db, 'clientMemberships'),
+                where('clientId', '==', nextProfile.uid),
+                orderBy('createdAt', 'desc')
+              );
+              const membershipSnap = await getDocs(membershipsQuery);
+              const latestMembership = membershipSnap.docs[0]?.data() as ClientMembership | undefined;
+              schedulerCleanupRef.current?.();
+              schedulerCleanupRef.current = startNotificationScheduler(nextProfile, latestMembership ?? null);
+              void initializeFirebaseMessaging(nextProfile.uid);
+            } catch (error) {
+              console.warn('[App] Scheduler bootstrap failed:', error);
+              schedulerCleanupRef.current?.();
+              schedulerCleanupRef.current = startNotificationScheduler(nextProfile, null);
+            }
           } else {
             setProfile(null);
           }
@@ -93,6 +114,8 @@ export default function App() {
     return () => {
       unsubscribe();
       activeProfileUnsub.current?.();
+      schedulerCleanupRef.current?.();
+      schedulerCleanupRef.current = null;
     };
   }, []);
 

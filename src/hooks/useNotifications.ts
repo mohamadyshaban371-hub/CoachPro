@@ -3,6 +3,7 @@ import { addDoc, collection, onSnapshot, orderBy, query } from 'firebase/firesto
 import { auth, db } from '../firebase';
 import { playNotify } from '../lib/sounds';
 import type { AppNotification, UserProfile } from '../types';
+import { createNotification } from '../core/services/notifications.service';
 
 export type NotificationFormState = {
   title: string;
@@ -33,17 +34,13 @@ export function useNotifications({ setLoading, setMessage }: UseNotificationsArg
 
     setLoading(true);
     try {
-      const notificationsRef = collection(db, 'users', notificationTarget.uid, 'notifications');
-      const newNotification = {
-        userId: notificationTarget.uid,
+      await createNotification(notificationTarget.uid, {
         title: notificationForm.title,
-        message: notificationForm.message,
-        type: notificationForm.type,
-        isRead: false,
-        createdAt: new Date().toISOString(),
-      };
-
-      await addDoc(notificationsRef, newNotification);
+        body: notificationForm.message,
+        type: (notificationForm.type as AppNotification['type']) || 'custom',
+        priority: 'medium',
+        metadata: { source: 'admin' },
+      });
       setMessage({ text: 'تم إرسال التنبيه بنجاح', type: 'success' });
       setShowNotificationModal(false);
       setNotificationForm({ title: '', message: '', type: 'custom' });

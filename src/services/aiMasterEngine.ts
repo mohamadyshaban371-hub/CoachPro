@@ -1,4 +1,6 @@
 import { EMSProgram, FullQuestionnaire, MeasurementHistory, RehabProgram, UserProfile } from "../types";
+import { scheduleAISchedulerNotifications } from './notificationScheduler';
+import { sanitizeAiInput } from '../lib/sanitize';
 
 /**
  * Resolves the client's real age from stored age field OR birthDate.
@@ -119,6 +121,7 @@ import {
   trainingRailHeader,
   emsRailHeader,
 } from "../lib/aiBlocks";
+import { generateAIInsightNotifications } from '../core/services/notifications.service';
 
 /**
  * Build the deterministic ScientificInput object from the user's
@@ -615,7 +618,9 @@ export const handleAIError = (error: any) => {
         msg = parsed.error;
       }
     }
-  } catch (e) {}
+  } catch (error) {
+    console.warn('[aiMasterEngine] unable to parse AI error payload:', error);
+  }
 
   const errorMessage = msg.toLowerCase();
   
@@ -1232,7 +1237,7 @@ Output: Professional Arabic. Plain text only (no Markdown tables). Always end wi
 
   async generateCoachWorkout(client: UserProfile, options?: { split?: string; goal?: string; experienceLevel?: string }): Promise<AIDraftResponse> {
     const systemInstruction = `You are an elite strength and conditioning coach. Create a complete workout program from the client profile. Return a single JSON object with keys: title, split, goal, exercises (array of {name, sets, reps, rest, tempo, notes}), cardio, notes. Use real coaching logic and keep it safe and specific.`;
-    const prompt = `Generate a workout program for this client. Context: ${buildClientSnapshot(client)}. Preferred split: ${options?.split || 'Full Body'}. Goal: ${options?.goal || client.onboardingData?.goal || 'fitness'}. Experience: ${options?.experienceLevel || client.experienceLevel || 'intermediate'}.`;
+    const prompt = `Generate a workout program for this client. Context: ${sanitizeAiInput(buildClientSnapshot(client))}. Preferred split: ${sanitizeAiInput(options?.split || 'Full Body')}. Goal: ${sanitizeAiInput(options?.goal || client.onboardingData?.goal || 'fitness')}. Experience: ${sanitizeAiInput(options?.experienceLevel || client.experienceLevel || 'intermediate')}.`;
     const data = await generateStructuredCoachOutput<object>(
       'coach-workout',
       client,
@@ -1249,12 +1254,21 @@ Output: Professional Arabic. Plain text only (no Markdown tables). Always end wi
         notes: 'Progress by adding reps or load once recovery feels good.',
       }
     );
+    await Promise.all([
+      generateAIInsightNotifications(client, {
+        title: 'تم إنشاء خطة تمرين جديدة',
+        body: 'تم تحديث خطتك التدريبية بناءً على أحدث بياناتك.',
+        type: 'workout',
+        priority: 'medium',
+      }),
+      scheduleAISchedulerNotifications(client, 'workout', 'تم توليد خطة تمرين جديدة بناءً على آخر تحديثاتك.'),
+    ]);
     return { content: JSON.stringify(data) };
   },
 
   async generateCoachMeal(client: UserProfile, options?: { goal?: string; calories?: number; protein?: number; carbs?: number; fat?: number }): Promise<AIDraftResponse> {
     const systemInstruction = `You are a nutrition coach. Create a complete meal plan from the client profile. Return a single JSON object with keys: title, goal, calories, protein, carbs, fat, meals (array of {name, type, details}). Include hydration and practical alternatives.`;
-    const prompt = `Generate a meal plan for this client. Context: ${buildClientSnapshot(client)}. Goal: ${options?.goal || client.onboardingData?.goal || 'fitness'}. Calories target: ${options?.calories || 2200}. Protein target: ${options?.protein || 160}. Carbs target: ${options?.carbs || 220}. Fat target: ${options?.fat || 70}.`;
+    const prompt = `Generate a meal plan for this client. Context: ${sanitizeAiInput(buildClientSnapshot(client))}. Goal: ${sanitizeAiInput(options?.goal || client.onboardingData?.goal || 'fitness')}. Calories target: ${sanitizeAiInput(String(options?.calories || 2200))}. Protein target: ${sanitizeAiInput(String(options?.protein || 160))}. Carbs target: ${sanitizeAiInput(String(options?.carbs || 220))}. Fat target: ${sanitizeAiInput(String(options?.fat || 70))}.`;
     const data = await generateStructuredCoachOutput<object>(
       'coach-meal',
       client,
@@ -1274,12 +1288,21 @@ Output: Professional Arabic. Plain text only (no Markdown tables). Always end wi
         ],
       }
     );
+    await Promise.all([
+      generateAIInsightNotifications(client, {
+        title: 'تم إنشاء خطة غذائية جديدة',
+        body: 'تم تحديث خطة الوجبات الخاصة بك بناءً على أحدث بياناتك.',
+        type: 'nutrition',
+        priority: 'medium',
+      }),
+      scheduleAISchedulerNotifications(client, 'meal', 'تم توليد خطة غذائية جديدة بناءً على آخر تحديثاتك.'),
+    ]);
     return { content: JSON.stringify(data) };
   },
 
   async generateCoachPrediction(client: UserProfile): Promise<AIDraftResponse> {
     const systemInstruction = `You are a performance analyst. Predict the client's progress from the measurement history and trend. Return a single JSON object with keys: predictions (array of {horizon, expectedWeight, expectedBodyFat, expectedMuscleMass, confidence}).`;
-    const prompt = `Predict the client's short and medium-term progress. Context: ${buildClientSnapshot(client)}`;
+    const prompt = `Predict the client's short and medium-term progress. Context: ${sanitizeAiInput(buildClientSnapshot(client))}`;
     const data = await generateStructuredCoachOutput<object>(
       'coach-prediction',
       client,
@@ -1296,7 +1319,7 @@ Output: Professional Arabic. Plain text only (no Markdown tables). Always end wi
 
   async generateCoachRecommendations(client: UserProfile): Promise<AIDraftResponse> {
     const systemInstruction = `You are a high-level coach. Return a single JSON object with keys: recommendations (array of {title, description, priority}). Recommend calorie adjustments, cardio adjustments, workout modifications, recovery suggestions, and optional supplements.`;
-    const prompt = `Recommend the next coaching adjustments for this client. Context: ${buildClientSnapshot(client)}`;
+    const prompt = `Recommend the next coaching adjustments for this client. Context: ${sanitizeAiInput(buildClientSnapshot(client))}`;
     const data = await generateStructuredCoachOutput<object>(
       'coach-recommendations',
       client,
@@ -1308,12 +1331,22 @@ Output: Professional Arabic. Plain text only (no Markdown tables). Always end wi
         ],
       }
     );
+    await Promise.all([
+      generateAIInsightNotifications(client, {
+        title: 'توصية ذكية جديدة',
+        body: 'يوصى بإجراء تعديل على البروتين أو الكربوهيدرات أو الكارديو.',
+        type: 'ai',
+        priority: 'high',
+      }),
+      scheduleAISchedulerNotifications(client, 'calorie', 'تمت إضافة توصية ذكية لتعديل السعرات أو البروتين.'),
+      scheduleAISchedulerNotifications(client, 'cardio', 'تمت إضافة توصية ذكية لتعديل الكارديو.'),
+    ]);
     return { content: JSON.stringify(data) };
   },
 
   async generateCoachReport(client: UserProfile): Promise<AIDraftResponse> {
     const systemInstruction = `You are a professional coach writing a polished monthly progress report. Return a single JSON object with keys: title, summary, strengths, weaknesses, recommendations, nextGoals, motivationalMessage.`;
-    const prompt = `Write a professional coach report for this client. Context: ${buildClientSnapshot(client)}`;
+    const prompt = `Write a professional coach report for this client. Context: ${sanitizeAiInput(buildClientSnapshot(client))}`;
     const data = await generateStructuredCoachOutput<object>(
       'coach-report',
       client,
@@ -1529,6 +1562,15 @@ Return ONLY this JSON shape (no prose, no markdown):
     try {
       const systemPrompt = `Predict progress for the next 4 weeks based on profile data in Arabic. Use the provided profile metrics and activity history.`;
       const response = await safeGenerateContent(FLASH_MODEL, [{ parts: [{ text: `Profile Data: ${JSON.stringify(profile)}` }] }], systemPrompt);
+      await Promise.all([
+        generateAIInsightNotifications(profile, {
+          title: 'تنبؤ بالتقدم جاهز',
+          body: response.text || 'تم تحديث تحليل التقدم الخاص بك.',
+          type: 'progress',
+          priority: 'medium',
+        }),
+        scheduleAISchedulerNotifications(profile, 'prediction', response.text || 'تم تحديث تحليل التقدم الخاص بك.'),
+      ]);
       return response.text || "لا توجد بيانات كافية حالياً للتنبؤ.";
     } catch (err) {
       return handleAIError(err);
