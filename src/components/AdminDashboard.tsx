@@ -42,6 +42,11 @@ import { buildAICoachWorkoutPlan, buildAICoachMealPlan } from '../lib/aiCoach';
 import { buildClientWorkout, createWorkoutExercise } from '../lib/workoutBuilder';
 import { createEmptyMealPlan } from '../lib/mealBuilder';
 import type { ClientWorkout, ClientMealPlan, MealPlanEntry, MealTemplate, NutritionFood, WorkoutExercise, WorkoutTemplate } from '../types';
+import AIWorkoutGeneratorUI from './AIWorkoutGeneratorUI';
+import RecoveryDashboard from './RecoveryDashboard';
+import ProgressionDashboard from './ProgressionDashboard';
+import WorkoutAnalytics from './WorkoutAnalytics';
+import PeriodizationEditor from './PeriodizationEditor';
 import { 
   LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend 
 } from 'recharts';

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { collection, deleteDoc, doc, onSnapshot, orderBy, query, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, onSnapshot, orderBy, query, setDoc, updateDoc, getDocs } from 'firebase/firestore';
 import { db } from '../firebase';
 import type { ClientWorkout, CompletedWorkout, ExerciseHistoryEntry, WorkoutExercise, WorkoutTemplate } from '../types';
 import { buildClientWorkout, buildTemplateFromWorkout, calculateCompletionPercent, createCompletedWorkout, createExerciseHistoryEntry, createWorkoutExercise, DEFAULT_EXERCISE_LIBRARY } from '../lib/workoutBuilder';
+import { aiReviewWorkout, saveWorkoutReview, savePR } from '../services/professionalExercises';
 
 export function useWorkoutBuilder(clientUid?: string) {
   const [templates, setTemplates] = useState<WorkoutTemplate[]>([]);
@@ -109,10 +110,31 @@ export function useWorkoutBuilder(clientUid?: string) {
       const completedWorkout = createCompletedWorkout(updatedWorkout);
       const completedId = completedWorkout.id || `completed-${Date.now()}`;
       await setDoc(doc(db, 'users', clientUid, 'completedWorkouts', completedId), { ...completedWorkout, id: completedId });
+
+      // AI review of the completed workout and save to Firestore
+      try {
+        const summary = `Client ${clientUid} completed workout ${completedWorkout.title} with ${completedWorkout.exercises.length} exercises. CompletionPercent: ${completedWorkout.completionPercent}`;
+        const review = await aiReviewWorkout(summary);
+        if (review) await saveWorkoutReview(clientUid, completedId, review);
+      } catch (e) { /* ignore AI failures */ }
+
+      // Simple auto-progression suggestion based on average RPE
+      try {
+        const avgRPE = Math.round(completedWorkout.exercises.reduce((s, ex) => s + (Number(ex.rpe) || 0), 0) / Math.max(1, completedWorkout.exercises.length));
+        const suggestion = avgRPE >= 8 ? 'Consider increasing load in next cycle' : avgRPE <= 6 ? 'Consider increasing intensity or reps' : 'Maintain current progression';
+        await setDoc(doc(db, 'users', clientUid, 'progressionRecommendations', `${completedId}`), { workoutId: completedId, suggestion, avgRPE, createdAt: new Date().toISOString() });
+      } catch (e) { /* ignore */ }
     }
     const completedExercise = nextExercises.find((exercise) => exercise.id === exerciseId);
     if (completedExercise) {
       await setDoc(doc(db, 'users', clientUid, 'exerciseHistory', `${Date.now()}-${completedExercise.id}`), createExerciseHistoryEntry(completedExercise, clientUid));
+      // Persist PR if performedWeight is present
+      try {
+        const weightNum = Number(completedExercise.performedWeight || completedExercise.weight || 0);
+        if (weightNum > 0) {
+          await savePR(clientUid, { exerciseName: completedExercise.name, weight: weightNum, reps: Number(completedExercise.reps) || undefined, date: new Date().toISOString() });
+        }
+      } catch (e) { /* ignore */ }
     }
     return updatedWorkout;
   }, [clientUid, saveWorkout]);

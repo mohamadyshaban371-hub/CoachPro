@@ -653,6 +653,229 @@ export interface WorkoutExercise extends Exercise {
   performedWeight?: string;
 }
 
+/**
+ * ProfessionalExercise — extended, fully described exercise used by the
+ * Professional Exercise Library (Phase 10.2). All fields are optional when
+ * stored inside older documents, but new entries should populate the full
+ * schema.
+ */
+export interface ProfessionalExercise {
+  id: string;
+  name: string;
+  arabicName?: string;
+  category: string; // e.g. Strength, Hypertrophy, Mobility, Cardio
+  muscleGroup: string; // primary muscle group
+  secondaryMuscles?: string[];
+  equipment?: string;
+  difficulty?: 'beginner' | 'intermediate' | 'advanced';
+  movementPattern?: string; // e.g. hinge, squat, push, pull
+  unilateral?: boolean; // true if typically unilateral
+  primaryAxis?: 'push' | 'pull' | 'legs' | 'core' | 'full body';
+  exerciseType?: string; // e.g. compound, accessory, isolation
+  instructions?: string; // execution steps
+  coachingCues?: string[];
+  commonMistakes?: string[];
+  safetyTips?: string[];
+  regressionExercises?: string[]; // ids or names
+  progressionExercises?: string[]; // ids or names
+  replacementExercises?: string[]; // alternative ids or names
+  imageUrl?: string;
+  videoUrl?: string;
+  tags?: string[];
+}
+
+// Advanced set/structure types for professional workouts
+export type SetSchemeType =
+  | 'normal'
+  | 'superset'
+  | 'giantset'
+  | 'circuit'
+  | 'dropset'
+  | 'rest-pause'
+  | 'myo-reps'
+  | 'emom'
+  | 'amrap'
+  | 'tabata'
+  | 'pyramid'
+  | 'reverse-pyramid'
+  | 'cluster';
+
+export interface ExerciseSetDetail {
+  id?: string;
+  sets?: string;
+  reps?: string;
+  targetReps?: string;
+  weight?: number | string;
+  tempo?: string;
+  rest?: string;
+  rpe?: string;
+  rir?: string;
+  loadPercent?: string;
+  executionSpeed?: 'slow' | 'moderate' | 'explosive' | 'custom';
+  timeUnderTension?: string;
+  isWarmupSet?: boolean;
+  isDropSet?: boolean;
+  isRestPause?: boolean;
+  isClusterSet?: boolean;
+  isMyoReps?: boolean;
+  isFailure?: boolean;
+  notes?: string;
+  executionTips?: string[];
+  scheme?: SetSchemeType;
+}
+
+export interface StructuredExercise extends WorkoutExercise {
+  details?: ExerciseSetDetail[]; // multiple set definitions (for clusters, dropsets etc)
+  groupId?: string; // superset/giantset group id
+}
+
+export type SplitType =
+  | 'Push Pull Legs'
+  | 'Upper Lower'
+  | 'Body Part Split'
+  | 'Full Body'
+  | 'Bro Split'
+  | 'Powerbuilding'
+  | 'Powerlifting'
+  | 'Olympic Weightlifting'
+  | 'CrossFit'
+  | 'Functional'
+  | 'Calisthenics'
+  | 'Hybrid Athlete'
+  | 'Strongman'
+  | 'Custom';
+
+export interface PeriodizationBlock {
+  id?: string;
+  name: string; // Macrocycle / Mesocycle / Microcycle label
+  type: 'macro' | 'meso' | 'micro' | 'deload';
+  weeks: number;
+  intensityRange?: { from: number; to: number }; // % of 1RM
+  volumeMultiplier?: number; // relative
+  progressionStrategy?: string; // e.g. linear, undulating
+}
+
+export interface ProfessionalWorkout {
+  id?: string;
+  title: string;
+  split?: SplitType;
+  exercises: StructuredExercise[];
+  periodization?: PeriodizationBlock[];
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ProgressionAdvice {
+  action: 'increase_weight' | 'decrease_weight' | 'increase_reps' | 'decrease_reps' | 'increase_sets' | 'decrease_sets' | 'swap_exercise' | 'reduce_fatigue' | 'increase_intensity';
+  reason: string;
+  suggestedValues?: Partial<ExerciseSetDetail>;
+}
+
+export interface PRRecord {
+  id?: string;
+  exerciseName: string;
+  weight: number;
+  reps?: number;
+  date?: string;
+  clientUid?: string;
+}
+
+// AI Workout Generator Types
+export interface ClientTrainingProfile {
+  clientUid: string;
+  goal: 'hypertrophy' | 'strength' | 'power' | 'endurance' | 'fat-loss' | 'general-fitness' | 'athletic' | 'rehab';
+  age?: number;
+  gender?: 'male' | 'female';
+  height?: number;
+  weight?: number;
+  bodyFat?: number;
+  experience?: 'beginner' | 'intermediate' | 'advanced' | 'elite';
+  injuries?: { bodyPart: string; severity: 'mild' | 'moderate' | 'severe'; description: string }[];
+  weakMuscles?: string[];
+  strongMuscles?: string[];
+  availableEquipment?: string[];
+  trainingLocation?: 'gym' | 'home' | 'both';
+  availableDays?: number; // days per week
+  sessionDuration?: 30 | 45 | 60 | 90; // minutes
+  recoveryQuality?: 'poor' | 'fair' | 'good' | 'excellent'; // sleep, stress
+  sleepHours?: number;
+  stressLevel?: 'low' | 'moderate' | 'high';
+  preferredStyle?: 'strength' | 'hypertrophy' | 'power' | 'endurance' | 'mixed';
+  periodizationPreference?: 'linear' | 'undulating' | 'block' | 'conjugate' | 'auto';
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface AIGeneratedProgram {
+  id?: string;
+  clientUid: string;
+  profile: ClientTrainingProfile;
+  split: SplitType;
+  weeklySchedule: {
+    [day: string]: {
+      dayName: string;
+      focus?: string;
+      exercises: StructuredExercise[];
+      notes?: string;
+    };
+  };
+  periodizationPlan: PeriodizationBlock[];
+  progressionStrategy: string;
+  deloadWeekFrequency?: number; // every N weeks
+  rationale?: string;
+  generatedAt: string;
+  updatedAt?: string;
+}
+
+export interface ExerciseStats {
+  exerciseName: string;
+  clientUid: string;
+  bestWeight?: number;
+  bestReps?: number;
+  bestVolume?: number;
+  bestTonnage?: number;
+  bestEstimated1RM?: number;
+  recentSessions?: { date: string; weight: number; reps: number; volume: number }[];
+  prHistory?: PRRecord[];
+  lastPerformed?: string;
+}
+
+export interface FatigueRecord {
+  clientUid: string;
+  date: string;
+  fatigueScore: number; // 1-10
+  recoveryScore: number; // 1-10
+  readinessScore: number; // 1-10
+  sleepHours?: number;
+  sleepQuality?: number; // 1-10
+  stressLevel?: number; // 1-10
+  soreness?: number; // 1-10 (DOMS)
+  notes?: string;
+  createdAt: string;
+}
+
+export interface ExerciseReplacement {
+  originalExercise: string;
+  reasons: string[];
+  replacements: { name: string; reason: string }[];
+  timestamp: string;
+}
+
+export interface WorkoutAnalytics {
+  clientUid: string;
+  weekOf: string;
+  totalVolume: number;
+  totalTonnage: number;
+  muscleFrequency: { [muscle: string]: number };
+  volumeByMuscle: { [muscle: string]: number };
+  averageRPE: number;
+  averageIntensity: number;
+  workoutsCompleted: number;
+  adherence: number; // percentage
+  notes?: string;
+}
+
 export interface WorkoutTemplate {
   id?: string;
   name: string;

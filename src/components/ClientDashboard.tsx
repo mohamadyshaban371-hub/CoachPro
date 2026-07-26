@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { auth, db } from '../firebase';
 import { UserProfile, WeeklyPlan, DayPlan, Meal, Exercise, AppNotification } from '../types';
-import { LogOut, ShieldAlert, Clock, CheckCircle2, Activity, Utensils, Dumbbell, Target, CircleAlert, MessageCircle, ChevronRight, ArrowRight, Scale, X, Download, Droplets, Heart, Check, ChevronLeft, Calendar, Zap, Frown, Meh, Smile, Volume2, Play, MessageSquare, RefreshCw, Bell, Eye, Crown, Refrigerator, FileText, User as UserIcon, Bot, Send, Camera } from 'lucide-react';
+import { LogOut, ShieldAlert, Clock, CheckCircle2, Activity, Utensils, Dumbbell, Target, CircleAlert, MessageCircle, ChevronRight, ArrowRight, Scale, X, Download, Droplets, Heart, Check, ChevronLeft, Calendar, Zap, Frown, Meh, Smile, Volume2, Play, MessageSquare, RefreshCw, Bell, Eye, Crown, Refrigerator, FileText, User as UserIcon, Bot, Send, Camera, TrendingUp, BarChart3 } from 'lucide-react';
 import CelebrationPopup from './CelebrationPopup';
 import Chat from './Chat';
 import { motion, AnimatePresence } from 'motion/react';
@@ -49,6 +49,11 @@ import { buildAdaptiveContext } from '../services/aiMasterEngine';
 import AICoachDashboard from './AICoachDashboard';
 import { useWorkoutBuilder } from '../hooks/useWorkoutBuilder';
 import { useMealBuilder } from '../hooks/useMealBuilder';
+import AIWorkoutGeneratorUI from './AIWorkoutGeneratorUI';
+import RecoveryDashboard from './RecoveryDashboard';
+import ProgressionDashboard from './ProgressionDashboard';
+import WorkoutAnalytics from './WorkoutAnalytics';
+import AdvancedWorkoutBuilder from './AdvancedWorkoutBuilder';
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface ClientDashboardProps {
@@ -105,7 +110,7 @@ export default function ClientDashboard({ profile: initialProfile }: ClientDashb
   const [isScanning, setIsScanning] = useState(false);
   const [showMoodSurvey, setShowMoodSurvey] = useState(true);
   const [moodAdvice, setMoodAdvice] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'today' | 'weekly' | 'analysis' | 'chat' | 'assessment' | 'injury' | 'falcon' | 'feed' | 'profile'>('today');
+  const [activeTab, setActiveTab] = useState<'today' | 'weekly' | 'analysis' | 'chat' | 'assessment' | 'injury' | 'ai-programs' | 'recovery' | 'progression' | 'analytics' | 'falcon' | 'feed' | 'profile'>('today');
   const [showFridgeScanner, setShowFridgeScanner] = useState(false);
   const [showEmsSafety, setShowEmsSafety] = useState(false);
   const [emsCheckedItems, setEmsCheckedItems] = useState<Record<string, boolean>>({});
@@ -1053,6 +1058,10 @@ export default function ClientDashboard({ profile: initialProfile }: ClientDashb
     { key: 'analysis', label: t('tab.analysis'), icon: Zap },
     ...(profile.physicalAssessmentEnabled && hasEmsOrWorkout ? [{ key: 'assessment', label: t('tab.assessment'), icon: Scale }] : []),
     ...(profile.physicalAssessmentEnabled && isRehabOnly ? [{ key: 'injury', label: 'تقييم الإصابة', icon: Heart }] : []),
+    { key: 'ai-programs', label: 'AI Programs', icon: Bot },
+    { key: 'recovery', label: 'Recovery', icon: Heart },
+    { key: 'progression', label: 'Progression', icon: TrendingUp },
+    { key: 'analytics', label: 'Analytics', icon: BarChart3 },
     { key: 'falcon', label: t('tab.falcon'), icon: Eye },
     { key: 'feed', label: t('tab.feed'), icon: Crown },
     { key: 'chat', label: t('tab.chat'), icon: MessageSquare },
@@ -1431,6 +1440,30 @@ export default function ClientDashboard({ profile: initialProfile }: ClientDashb
             </div>
           )}
         </section>
+        )}
+
+        {activeTab === 'ai-programs' && (
+          <div className="animate-in fade-in slide-in-from-bottom-5 duration-500">
+            <AIWorkoutGeneratorUI clientUid={profile.uid} />
+          </div>
+        )}
+
+        {activeTab === 'recovery' && (
+          <div className="animate-in fade-in slide-in-from-bottom-5 duration-500">
+            <RecoveryDashboard clientUid={profile.uid} />
+          </div>
+        )}
+
+        {activeTab === 'progression' && (
+          <div className="animate-in fade-in slide-in-from-bottom-5 duration-500">
+            <ProgressionDashboard clientUid={profile.uid} />
+          </div>
+        )}
+
+        {activeTab === 'analytics' && (
+          <div className="animate-in fade-in slide-in-from-bottom-5 duration-500">
+            <WorkoutAnalytics />
+          </div>
         )}
 
         {activeTab === 'profile' && <Profile profile={profile} />}
