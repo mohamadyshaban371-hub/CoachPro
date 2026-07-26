@@ -1,12 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { motion } from 'motion/react';
-import { Activity, BarChart3, Camera, Sparkles, TrendingDown, TrendingUp, Weight, Droplets, Flame, HeartPulse } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Activity, BarChart3, Camera, Sparkles, TrendingDown, TrendingUp, Weight, Droplets, Flame, HeartPulse, Target, CalendarRange } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useProgress } from '../hooks/useProgress';
 import { MeasurementHistory, UserProfile } from '../types';
-import { calculateBodyMetrics } from '../lib/progress';
-import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
-import { db } from '../firebase';
+import { buildProgressAnalytics, calculateBodyMetrics } from '../lib/progress';
 
 interface ProgressTabProps {
   profile: UserProfile;
@@ -24,15 +22,9 @@ export default function ProgressTab({ profile }: ProgressTabProps) {
   const [photos, setPhotos] = useState({ front: '', side: '', inBody: '' });
   const [saving, setSaving] = useState(false);
 
-  const chartData = useMemo(() => {
-    return (history || []).map((entry) => ({
-      date: entry.date.slice(5),
-      weight: entry.weight,
-      fatPercentage: entry.fatPercentage,
-      muscleMass: entry.muscleMass,
-      waterPercentage: entry.waterPercentage,
-    }));
-  }, [history]);
+  const analytics = useMemo(() => buildProgressAnalytics(history, profile?.onboardingData), [history, profile?.onboardingData]);
+
+  const chartData = analytics.chartData;
 
   const handleSave = async () => {
     const entry: MeasurementHistory = {
@@ -72,6 +64,19 @@ export default function ProgressTab({ profile }: ProgressTabProps) {
   return (
     <div className="space-y-6">
       <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="rounded-3xl bg-slate-900/60 border border-white/5 p-6 space-y-5">
+        <div className="grid gap-3 md:grid-cols-4">
+          <SummaryCard label="البداية" value={`${analytics.summary.start} كجم`} icon={<CalendarRange size={15} />} />
+          <SummaryCard label="الحالي" value={`${analytics.summary.current} كجم`} icon={<Weight size={15} />} />
+          <SummaryCard label="التغير" value={`${analytics.summary.change > 0 ? '+' : ''}${analytics.summary.change} كجم`} icon={<TrendingUp size={15} />} />
+          <SummaryCard label="الهدف" value={analytics.summary.goal} icon={<Target size={15} />} />
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <TrendTile title="الوزن" value={`${analytics.metrics.find((m) => m.key === 'weight')?.current ?? 0} كجم`} delta={`${analytics.metrics.find((m) => m.key === 'weight')?.change ?? 0} كجم`} positive={(analytics.metrics.find((m) => m.key === 'weight')?.trend ?? 'stable') !== 'down'} />
+          <TrendTile title="الدهون" value={`${analytics.metrics.find((m) => m.key === 'fatPercentage')?.current ?? 0}%`} delta={`${analytics.metrics.find((m) => m.key === 'fatPercentage')?.change ?? 0}%`} positive={(analytics.metrics.find((m) => m.key === 'fatPercentage')?.trend ?? 'stable') !== 'up'} />
+          <TrendTile title="العضلات" value={`${analytics.metrics.find((m) => m.key === 'muscleMass')?.current ?? 0} كجم`} delta={`${analytics.metrics.find((m) => m.key === 'muscleMass')?.change ?? 0} كجم`} positive={(analytics.metrics.find((m) => m.key === 'muscleMass')?.trend ?? 'stable') !== 'down'} />
+          <TrendTile title="BMI" value={`${analytics.metrics.find((m) => m.key === 'bmi')?.current ?? 0}`} delta={`${analytics.metrics.find((m) => m.key === 'bmi')?.change ?? 0}`} positive={(analytics.metrics.find((m) => m.key === 'bmi')?.trend ?? 'stable') !== 'down'} />
+        </div>
         <div className="flex items-center justify-between">
           <div>
             <h3 className="text-xl font-black text-white">تتبع التقدم</h3>
@@ -152,21 +157,59 @@ export default function ProgressTab({ profile }: ProgressTabProps) {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-xl font-black text-white">المنحنى الأسبوعي</h3>
-            <p className="text-sm text-slate-400">تتبع الوزن والدهون بمرور الوقت</p>
+            <p className="text-sm text-slate-400">تتبع الوزن والدهون والعضلات وBMI بمرور الوقت</p>
           </div>
         </div>
-        <div className="h-72">
+        <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData}>
               <CartesianGrid stroke="#334155" strokeDasharray="3 3" />
               <XAxis dataKey="date" stroke="#64748b" />
               <YAxis stroke="#64748b" />
               <Tooltip />
-              <Line type="monotone" dataKey="weight" stroke="#60a5fa" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="fatPercentage" stroke="#fb923c" strokeWidth={2} dot={false} />
+              <Legend />
+              <Line type="monotone" dataKey="weight" stroke="#60a5fa" strokeWidth={2} dot={false} name="الوزن" />
+              <Line type="monotone" dataKey="fatPercentage" stroke="#fb923c" strokeWidth={2} dot={false} name="الدهون" />
+              <Line type="monotone" dataKey="muscleMass" stroke="#34d399" strokeWidth={2} dot={false} name="العضلات" />
+              <Line type="monotone" dataKey="bmi" stroke="#f472b6" strokeWidth={2} dot={false} name="BMI" />
             </LineChart>
           </ResponsiveContainer>
         </div>
+      </motion.section>
+
+      <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="rounded-3xl bg-slate-900/60 border border-white/5 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-xl font-black text-white">سجل القياسات</h3>
+            <p className="text-sm text-slate-400">آخر تحديثات الجسم مع نسبة التغير</p>
+          </div>
+        </div>
+        {history.length ? (
+          <div className="space-y-3">
+            {history.slice().reverse().map((entry, index) => {
+              const entryDate = new Date(entry.date).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' });
+              const previousEntry = history.slice().reverse()[index + 1];
+              const diff = previousEntry ? Number((entry.weight - previousEntry.weight).toFixed(1)) : 0;
+              return (
+                <div key={`${entry.date}-${index}`} className="rounded-2xl border border-white/5 bg-slate-950/60 p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-bold text-white">{entryDate}</p>
+                      <p className="text-xs text-slate-500">{entry.weight} كجم • {entry.fatPercentage}% دهون • {entry.muscleMass} كجم عضلات</p>
+                    </div>
+                    <div className={`rounded-full px-3 py-1 text-xs font-semibold ${diff <= 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
+                      {diff === 0 ? 'ثابت' : diff > 0 ? `+${diff} كجم` : `${diff} كجم`}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-white/10 p-6 text-center text-sm text-slate-500">
+            لا توجد قياسات مسجلة بعد. ابدأ بإضافة أول قياس من القسم أعلاه.
+          </div>
+        )}
       </motion.section>
     </div>
   );
@@ -189,6 +232,25 @@ function Row({ label, value, unit, positive }: { label: string; value: number; u
         {value > 0 ? <TrendingUp size={14} /> : value < 0 ? <TrendingDown size={14} /> : null}
         {value > 0 ? '+' : ''}{value}{unit}
       </span>
+    </div>
+  );
+}
+
+function SummaryCard({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-white/5 bg-slate-950/60 p-3">
+      <div className="flex items-center gap-2 text-slate-400 text-[11px] uppercase tracking-widest">{icon}{label}</div>
+      <div className="mt-2 text-sm font-black text-white">{value}</div>
+    </div>
+  );
+}
+
+function TrendTile({ title, value, delta, positive }: { title: string; value: string; delta: string; positive: boolean }) {
+  return (
+    <div className="rounded-2xl border border-white/5 bg-slate-950/60 p-3">
+      <div className="text-[11px] uppercase tracking-widest text-slate-400">{title}</div>
+      <div className="mt-2 text-lg font-black text-white">{value}</div>
+      <div className={`mt-1 text-sm ${positive ? 'text-emerald-400' : 'text-rose-400'}`}>{delta}</div>
     </div>
   );
 }
